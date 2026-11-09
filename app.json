@@ -33,6 +33,15 @@
             "kotlinVersion": "2.3.21"
           }
         }
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BoliTax necesita acceder a tus fotos para subir tus documentos y las fotos de tu vehículo.",
+          "cameraPermission": "BoliTax necesita acceder a la cámara para tomar las fotos de tus documentos y de tu vehículo.",
+          "microphonePermission": false
+        }
       ]
     ]
   }
