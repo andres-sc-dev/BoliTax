@@ -266,3 +266,68 @@ Herramientas usadas:
   - Se quitaron todos los logs temporales `[DIAG]`.
   - Archivos y commit: src/services/cloudinary.js, src/services/driverRegistration.js, src/screens/register/DocumentsTab.js, package.json, package-lock.json — 3a85997
   - Verificacion: `npm test` (53 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador: registro completo, fotos en Cloudinary y documento en Firestore con status pending.
+---
+
+### Entrada #7
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 3, Fase A: mapa en la pantalla de Inicio con la ubicacion actual del conductor, sin Google Maps (servicios gratuitos de OpenStreetMap, seccion 7 del documento), y componente de mapa reutilizable
+- Prompt:
+  ```
+  ## Objetivo
+  Implementar la pantalla de Inicio del conductor: mapa con su ubicacion actual, interruptor Disponible / No disponible y envio de la ubicacion en tiempo real a Firestore. Ademas, dejar listo el servicio de rutas que usaran los modulos siguientes. Referencia: seccion 3 (pantalla Inicio, hooks obligatorios) y seccion 7 (APIs) de docs/requisitos-bolitax.pdf.
+
+  ## Decision tomada: sin Google Maps
+  No vamos a usar Google Cloud (no hay API key ni facturacion). Usaremos servicios gratuitos de OpenStreetMap, que el PDF permite en la seccion 7:
+  - Mapa: tiles de OpenStreetMap. Como react-native-maps en Android depende de Google Maps, compara brevemente MapLibre (@maplibre/maplibre-react-native) contra Leaflet dentro de react-native-webview y recomienda una. Criterios: compatibilidad con Expo SDK 58 y nuestro build (Kotlin 2.3.21), riesgo de errores de compilacion nativa, soporte para marcadores y polilineas, y facilidad de explicarlo. Ten en cuenta que react-native-webview tambien lo necesitaremos para Mercado Pago.
+  - Rutas, distancia y duracion: OSRM (servidor publico router.project-osrm.org), en lugar de Directions / Distance Matrix.
+  - Coordenadas a direccion: Nominatim, respetando su limite de 1 peticion por segundo y enviando un User-Agent "BoliTax-app-universitaria".
+  - Actualiza la seccion Stack de CLAUDE.md con esta decision.
+
+  ## Trabajo por fases
+  Al terminar CADA fase: detente, dime como verificarla en el emulador, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: mapa y ubicacion actual (entrada #7)
+  - Instala TODAS las dependencias nativas del modulo en esta fase (libreria de mapa elegida, expo-location si falta), para recompilar una sola vez.
+  - Permiso de ubicacion en primer plano con textos en español. Si el usuario lo niega, mostrar un mensaje claro con boton para reintentar, no un Alert.
+  - HomeScreen muestra el mapa centrado en la ubicacion actual con un marcador del conductor.
+  - Componente de mapa reutilizable en src/components/ (lo usaran viaje en curso e historial), que acepte marcadores y una polilinea.
+
+  ### Fase B: disponibilidad y ubicacion en tiempo real (entrada #8)
+  - Interruptor Disponible / No disponible en Inicio, con useState.
+  - Solo se puede poner Disponible si driver.status === "approved". Si esta "pending", el interruptor se ve deshabilitado con el aviso "Cuenta pendiente de aprobacion".
+  - Hook personalizado useDriverLocation: mientras esta Disponible usa watchPositionAsync y actualiza `drivers/{uid}` con `location: { lat, lng }`, `isAvailable: true` y `locationUpdatedAt` cada pocos segundos (no en cada movimiento minimo; usa distanceInterval/timeInterval razonables). Al pasar a No disponible o salir de la pantalla, detiene el seguimiento en la limpieza del useEffect y guarda `isAvailable: false`.
+  - Guardar el ultimo estado de disponibilidad en AsyncStorage (permitido por el PDF) y restaurarlo al abrir.
+  - Al cerrar sesion, poner isAvailable en false.
+
+  ### Fase C: servicio de rutas (entrada #9)
+  - src/services/routing.js:
+    - getRoute(origin, destination) con OSRM: devuelve { distanceKm, durationMin, coordinates } (coordinates listo para dibujar la polilinea). Redondear distanceKm a 1 decimal y durationMin a entero.
+    - reverseGeocode({ lat, lng }) con Nominatim: devuelve una direccion corta legible.
+    - Manejo de errores y timeout.
+  - Funciones puras de transformacion de la respuesta con tests en Jest (sin llamar a la red en los tests).
+  - Pantalla temporal o boton de prueba en Inicio (marcado TEMPORAL) que dibuje una ruta entre dos puntos de Medellin para verificar visualmente.
+
+  ## Reglas
+  - Todo Firebase solo desde src/services/firebase.js.
+  - Dependencias con `npx expo install`, explicando cada una.
+  - Estilos simples; el diseño va despues.
+  - Comentario `// AI-assisted: see docs/AI_LOG.md #N` segun la fase.
+
+  ## Cierre
+  Muestrame primero: tu comparacion y recomendacion de libreria de mapa, el plan de las 3 fases, las dependencias y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente comparo MapLibre contra Leaflet en react-native-webview y recomendo Leaflet: `react-native-webview` esta versionado por Expo para el SDK 58, no agrega un SDK nativo grande que compilar (riesgo bajo con Kotlin 2.3.21 y CMake) y se reutiliza para Mercado Pago. Presento el plan de las 3 fases. En la Fase A instalo `expo-location` y `react-native-webview`, creo el componente `LeafletMap`, el hook `useDriverLocation` (permiso y posicion actual) y la nueva pantalla de Inicio con el mapa, el marcador del conductor, el manejo del permiso negado y el aviso de cuenta pendiente como franja encima del mapa.
+- Que se uso / modifico / descarto:
+  - Se descarto MapLibre: no esta en el SDK de Expo, su documentacion de Expo no indica compatibilidad con SDK 58 ni con la nueva arquitectura, y compila un SDK nativo grande en C++ (ya hubo problemas de Kotlin y de CMake en este proyecto).
+  - Leaflet 1.9.4 se carga desde unpkg con version fija y hash de integridad (SRI); se verificaron los hashes descargando los archivos. Se usan `circleMarker` para no depender de imagenes de iconos.
+  - El WebView envia el User-Agent `BoliTax-app-universitaria`, como pide la politica de tiles de OpenStreetMap, y el mapa muestra la atribucion "© OpenStreetMap contributors".
+  - La app no dibuja el mapa: le envia los datos con `injectJavaScript` cuando la pagina avisa con `postMessage` que esta lista. El efecto solo se repite cuando cambian los datos serializados.
+  - Si se niega el permiso, la pantalla muestra un mensaje con "Reintentar" y "Abrir ajustes" (cuando Android ya no deja volver a preguntar, solo se puede desde ajustes). En Android el texto del dialogo de permiso lo pone el sistema; `locationWhenInUsePermission` en `app.json` aplica en iOS.
+  - Se quito `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` de `.env.example` y se actualizo la seccion Stack de CLAUDE.md.
+  - Ajuste al aprobar el plan: en la Fase B el seguimiento no debe detenerse al navegar dentro del Stack de Inicio (ahi iran la solicitud entrante y el viaje en curso); se movera al nivel de `HomeStack` con un contexto de disponibilidad.
+  - Ajuste tras probar en el emulador (prompt: "En el emulador a veces sale "Current location is unavailable" porque aun no hay una posicion lista. Haz useDriverLocation mas robusto: si getCurrentPositionAsync falla, intenta getLastKnownPositionAsync como respaldo, y reintenta automaticamente un par de veces con una espera corta antes de mostrar el error. El mensaje de error y el boton Reintentar se mantienen como ultimo recurso."): cada intento pide la posicion actual y, si falla, usa la ultima conocida; se hacen hasta 3 intentos con 2 s de espera entre ellos y solo despues se muestra el error con "Reintentar". Los reintentos se cortan si la pantalla se desmonta. La logica de reintento quedo en la funcion `retryAsync` (src/utils/retryAsync.js), con 4 tests en Jest que usan una espera falsa.
+- Archivos y commit: app.json, package.json, package-lock.json, CLAUDE.md, .env.example, src/components/LeafletMap.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/utils/retryAsync.js, src/utils/__tests__/retryAsync.test.js — [PENDIENTE]
+- Verificacion: `npm test` (57 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]
