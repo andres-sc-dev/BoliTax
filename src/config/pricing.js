@@ -1,22 +1,22 @@
-// AI-assisted: see docs/AI_LOG.md #1
-// unica fuente de verdad para tarifas y comision.
-// todos los valores de dinero son pesos colombianos enteros para evitar errores de decimales.
-// valores de referencia para la clase, no son tarifas reales.
+// AI-assisted: see docs/AI_LOG.md #2
+// Única fuente de verdad para tarifas y comisión (sección 5 de los requisitos).
+// Todos los montos son pesos colombianos enteros para evitar errores con decimales.
+// Valores didácticos, no son tarifas reales.
 
 export const PRICING = {
   // monto fijo que se cobra al iniciar cada viaje
   baseFare: 3500,
-  // precio por kilometro
+  // valor por kilómetro recorrido
   perKm: 1200,
-  // precio por minuto
+  // valor por minuto de duración
   perMinute: 250,
-  // tarifa minima que puede tener un viaje
+  // tarifa mínima de un viaje (se aplica después del multiplicador de categoría)
   minimumFare: 6000,
-  // porcentaje de la tarifa que se queda la plataforma (20 %). la propina no entra aqui
-  commissionRate: 0.2,
-  // la tarifa se redondea al multiplo mas cercano de este valor
+  // la tarifa se redondea al múltiplo más cercano de este valor
   roundingStep: 100,
-  // multiplicador de tarifa segun la categoria del vehiculo
+  // porcentaje de la tarifa que se queda la plataforma (20 %); la propina no entra aquí
+  commissionRate: 0.2,
+  // multiplicador de tarifa según la categoría del vehículo
   categoryMultipliers: {
     economy: 1.0,
     xl: 1.4,
