@@ -76,3 +76,64 @@ Herramientas usadas:
 - Archivos y commit: src/services/firebase.js, App.js, app.json, package.json, package-lock.json, .env.example, .gitignore, AGENTS.md, CLAUDE.md
 - Verificacion: compilo con `npx expo run:android` en el emulador Pixel_7a y se crearon 2 documentos en la coleccion `test` de Firestore. Para que compilara hubo que mover el proyecto a `C:\dev\bolitax` por el limite de longitud de rutas de Windows (error de ninja/CMake al crear carpetas).
 
+---
+
+### Entrada #4
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Fase A del registro y la sesion: navegacion base (Stack de autenticacion, Drawer y Stack de Inicio), sesion del conductor con useContext, login con correo y contraseña, y cierre de sesion (secciones 2 y 3 del documento)
+- Prompt:
+  ```
+  ## Objetivo
+  Implementar la navegacion base, la sesion del conductor, el login y el registro completo en 3 pestañas. Referencia: secciones 2 y 3 de docs/requisitos-bolitax.pdf (registro, navegacion combinada y hooks obligatorios).
+
+  ## Trabajo por fases
+  Trabaja en 3 fases. Al terminar CADA fase: detente, dime como verificarla en el emulador, sugiere un mensaje de commit en español con prefijo en ingles (feat:, fix:, etc.), agrega la entrada a docs/AI_LOG.md y espera a que yo escriba "continua". No avances de fase sin mi confirmacion.
+
+  ### Fase A: navegacion y sesion
+  - Estructura con React Navigation:
+    - Si no hay sesion: Stack de autenticacion con Login y Registro.
+    - Si hay sesion: Drawer con Inicio, Historial, Ganancias y Perfil/Configuracion. Inicio es un Stack que despues tendra el flujo del viaje.
+    - Las pantallas que aun no existen quedan como placeholders simples con su titulo.
+  - AuthContext con useContext: usuario de Firebase Auth + documento del conductor en Firestore (`drivers/{uid}`), escuchado con onSnapshot y con limpieza en useEffect.
+  - Pantalla de Login con correo y contraseña. Errores debajo de cada campo, no en Alert. Mensajes de error de Firebase traducidos al español.
+  - Cerrar sesion desde el Drawer.
+  - AsyncStorage solo para preferencias (idioma). Nada sensible.
+
+  ### Fase B: formulario de registro (sin envio)
+  - Registro con navegacion Tab: Datos personales, Vehiculo, Documentos y pagos, con TODOS los campos y validaciones de la seccion 2 del PDF.
+  - Agregar en Datos personales: contraseña y confirmar contraseña (minimo 6 caracteres), necesarias para Firebase Auth.
+  - Agregar en Documentos: tarjeta amarilla (foto obligatoria, simulada). Todas las fotos de documentos son simuladas: se acepta cualquier imagen, pero las validaciones de formulario (fechas de vencimiento posteriores a hoy, formatos, obligatorios) SI se implementan.
+  - Revision tecnico-mecanica: obligatoria solo si el vehiculo tiene 2 años o mas (taxi, servicio publico en Colombia); si no aplica, ocultar los campos.
+  - El checkbox de terminos muestra el porcentaje de comision leido de src/config/pricing.js.
+  - El estado del formulario se comparte entre las 3 pestañas (context del registro) para no perder datos al cambiar de pestaña.
+  - Errores debajo de cada campo, no en Alert. El boton "Enviar registro" solo se habilita cuando las 3 pestañas son validas, y cada pestaña muestra un indicador si tiene errores.
+  - Las validaciones van como funciones puras en src/utils/validators.js con tests en Jest (placa ABC123 con mayusculas, documento 6-10 digitos, celular 10 digitos, mayor de 18, año <= actual, XL capacidad minima 6, correo, fechas posteriores a hoy).
+  - Fotos con camara o galeria. Por ahora solo se guarda la URI local.
+
+  ### Fase C: envio del registro
+  - Subida de fotos a Cloudinary con upload preset unsigned (sin API secret en la app). Variables EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME y EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET, agregalas a .env.example. Dime que debo crear yo en Cloudinary.
+  - Al enviar: crear el usuario en Firebase Auth, subir las fotos y guardar `drivers/{uid}` con los datos (campos en ingles), las URLs de las fotos y `status: "pending"`.
+  - Mostrar estado de carga mientras envia y manejar errores.
+  - Despues del registro, el conductor entra al Drawer y ve en Inicio un aviso "Cuenta pendiente de aprobacion".
+
+  ## Reglas
+  - Todo Firebase se importa solo desde src/services/firebase.js.
+  - Dependencias nuevas solo con `npx expo install`, explicando para que sirve cada una.
+  - Estilos simples y funcionales; el diseño se hace despues.
+  - Comentario `// AI-assisted: see docs/AI_LOG.md #N` usando el numero de la entrada de cada fase (#4, #5, #6).
+
+  ## Cierre
+  Muestrame primero el plan de las 3 fases, las dependencias y los pasos manuales que me tocan. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente leyo las secciones 2 y 3 del PDF, pregunto tres decisiones (idioma, selectores, regla de la tecnico-mecanica) y presento el plan de las 3 fases. En la Fase A creo AuthContext (onAuthStateChanged + onSnapshot de `drivers/{uid}`, ambos con limpieza en useEffect), RootNavigator que elige entre el Stack de autenticacion y el Drawer, el Drawer con boton "Cerrar sesion", el Stack de Inicio, la pantalla de Login con errores debajo de cada campo y traduccion de errores de Firebase, el servicio de preferencias de idioma en AsyncStorage y placeholders para las demas pantallas.
+- Que se uso / modifico / descarto:
+  - Decisiones tomadas antes del plan: el idioma solo se guarda y la interfaz sigue en español (la traduccion queda para otra tarea); los selectores y el checkbox seran componentes propios, sin librerias; la tecnico-mecanica se exige si año actual - año del vehiculo >= 2.
+  - Ajustes al aprobar el plan: se instalaron TODAS las dependencias nativas en esta fase (incluidas `@react-native-community/datetimepicker` y `expo-image-picker` con su plugin y textos de permisos en `app.json`) para recompilar una sola vez; el proveedor Correo/Contraseña ya estaba activo en Firebase; las reglas de Firestore se dejan para el modulo final.
+  - Dependencias instaladas con `npx expo install`: `@react-navigation/native`, `native-stack`, `drawer`, `bottom-tabs`, `react-native-screens`, `react-native-safe-area-context`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-worklets`, `@react-native-async-storage/async-storage`, `@react-native-community/datetimepicker` y `expo-image-picker`. Reanimated no necesita configurar Babel: `babel-preset-expo` lo hace solo en SDK 58.
+  - `validateEmail` y `validateRequired` se crearon en esta fase porque el Login los necesita; el resto de validadores llegan en la Fase B.
+  - `src/services/preferences.js` queda listo pero todavia no se usa: se conecta en la Fase B con el campo Idioma del registro.
+- Archivos y commit: App.js, app.json, package.json, package-lock.json, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/navigation/(RootNavigator, AuthStack, AppDrawer, HomeStack).js, src/screens/auth/(LoginScreen, RegisterScreen).js, src/screens/(Home, History, Earnings, Profile)Screen.js, src/components/(FormField, PlaceholderScreen).js, src/utils/(authErrors, validators).js y sus tests — [PENDIENTE]
+- Verificacion: `npm test` con 15 tests pasando (3 suites), `npx expo-doctor` sin problemas (20/20) y `npx expo export --platform android` genera el bundle sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]

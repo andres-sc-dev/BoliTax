@@ -1,0 +1,25 @@
+// AI-assisted: see docs/AI_LOG.md #4
+// Decide qué navegación mostrar según la sesión del conductor.
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import AppDrawer from './AppDrawer';
+import AuthStack from './AuthStack';
+
+export default function RootNavigator() {
+  const { user, initializing } = useAuth();
+
+  // mientras Firebase restaura la sesión guardada no se sabe si mostrar Login o Drawer
+  if (initializing) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  return user ? <AppDrawer /> : <AuthStack />;
+}
+
+const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+});

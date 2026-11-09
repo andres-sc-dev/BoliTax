@@ -14,3 +14,12 @@ export const messaging = getMessaging();
 // funciones de Firestore re-exportadas para que el resto de la app no importe la librería;
 // se agregan aquí a medida que se necesiten
 export { collection, addDoc, serverTimestamp } from '@react-native-firebase/firestore';
+
+// AI-assisted: see docs/AI_LOG.md #4
+// funciones de sesión y lectura del conductor usadas por AuthContext
+export {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from '@react-native-firebase/auth';
+export { doc, onSnapshot } from '@react-native-firebase/firestore';
