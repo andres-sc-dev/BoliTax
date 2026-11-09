@@ -28,3 +28,7 @@ export { doc, onSnapshot } from '@react-native-firebase/firestore';
 // funciones usadas al enviar el registro del conductor
 export { createUserWithEmailAndPassword, deleteUser } from '@react-native-firebase/auth';
 export { setDoc } from '@react-native-firebase/firestore';
+
+// AI-assisted: see docs/AI_LOG.md #8
+// actualización parcial del documento del conductor (ubicación y disponibilidad)
+export { updateDoc } from '@react-native-firebase/firestore';

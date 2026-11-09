@@ -28,3 +28,33 @@ export async function setLanguage(language) {
     console.log('No se pudo guardar el idioma:', error);
   }
 }
+
+// AI-assisted: see docs/AI_LOG.md #8
+// Último estado de disponibilidad (permitido por el PDF: "último estado de disponibilidad").
+// La clave incluye el uid para que dos cuentas en el mismo teléfono no se mezclen.
+const availabilityKey = (uid) => `preferences:lastAvailability:${uid}`;
+
+export async function getLastAvailability(uid) {
+  try {
+    return (await AsyncStorage.getItem(availabilityKey(uid))) === 'true';
+  } catch (error) {
+    console.log('No se pudo leer la disponibilidad guardada:', error);
+    return false;
+  }
+}
+
+export async function setLastAvailability(uid, isAvailable) {
+  try {
+    await AsyncStorage.setItem(availabilityKey(uid), String(isAvailable));
+  } catch (error) {
+    console.log('No se pudo guardar la disponibilidad:', error);
+  }
+}
+
+export async function clearLastAvailability(uid) {
+  try {
+    await AsyncStorage.removeItem(availabilityKey(uid));
+  } catch (error) {
+    console.log('No se pudo borrar la disponibilidad guardada:', error);
+  }
+}

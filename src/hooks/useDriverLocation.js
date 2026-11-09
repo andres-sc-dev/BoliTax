@@ -1,9 +1,11 @@
 // AI-assisted: see docs/AI_LOG.md #7
 // Hook de ubicación del conductor (hook personalizado obligatorio según el PDF).
-// Fase A: pide el permiso en primer plano y obtiene la posición actual.
-// Fase B: agregará el seguimiento en tiempo real mientras esté Disponible.
+// Pide el permiso en primer plano y obtiene la posición actual; mientras `active` sea true,
+// sigue la ubicación con watchPositionAsync y la envía a drivers/{uid} (Fase B, entrada #8).
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { setDriverAvailability, updateDriverLocation } from '../services/driverStatus';
+import { shouldSendLocation } from '../utils/locationThrottle';
 import { retryAsync } from '../utils/retryAsync';
 
 // intentos automáticos antes de mostrar el error (1 normal + 2 reintentos)
@@ -28,7 +30,20 @@ async function getPositionOnce() {
   }
 }
 
-export function useDriverLocation() {
+// AI-assisted: see docs/AI_LOG.md #8
+// opciones de seguimiento: una lectura cada 5 s como mínimo y solo si se movió 10 m o más,
+// para no escribir en Firestore por cada movimiento mínimo del GPS.
+// Accuracy.High pide el proveedor GPS, que es el que simula el emulador desde Extended controls
+// (con Balanced Android puede preferir red/wifi y no entregar esos cambios).
+const WATCH_OPTIONS = {
+  accuracy: Location.Accuracy.High,
+  timeInterval: 5000,
+  distanceInterval: 10,
+};
+
+// AI-assisted: see docs/AI_LOG.md #7
+// uid y active se usan en la Fase B: mientras active sea true, se envía la ubicación a Firestore
+export function useDriverLocation({ uid = null, active = false } = {}) {
   // 'checking' | 'granted' | 'denied'
   const [permissionStatus, setPermissionStatus] = useState('checking');
   // false cuando Android ya no deja volver a mostrar el diálogo (hay que ir a ajustes)
@@ -77,7 +92,81 @@ export function useDriverLocation() {
     };
   }, [attempt]);
 
+  // AI-assisted: see docs/AI_LOG.md #8
+  // error del seguimiento en tiempo real (distinto del error al obtener la posición inicial)
+  const [trackingError, setTrackingError] = useState(null);
+  // última ubicación en una ref, para leerla al activar sin volver a ejecutar el efecto
+  const locationRef = useRef(null);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
+  // seguimiento en tiempo real: solo mientras el conductor está Disponible en la sección Inicio
+  useEffect(() => {
+    if (!active || !uid || permissionStatus !== 'granted') return undefined;
+
+    let subscription = null;
+    let cancelled = false;
+    let lastSentAt = null;
+
+    // envía la ubicación respetando el límite de una escritura cada 5 s
+    const sendLocation = (latLng) => {
+      const now = Date.now();
+      if (!shouldSendLocation(lastSentAt, now)) return;
+      lastSentAt = now;
+      updateDriverLocation(uid, latLng).catch((writeError) =>
+        console.log('No se pudo enviar la ubicación:', writeError),
+      );
+    };
+
+    async function startTracking() {
+      setTrackingError(null);
+      // al activarse se envía de inmediato la última ubicación conocida
+      if (locationRef.current) sendLocation(locationRef.current);
+      // TEMPORAL (diagnóstico): confirma que el seguimiento arranca
+      console.log('[DIAG location] iniciando watchPositionAsync', WATCH_OPTIONS);
+      try {
+        const watcher = await Location.watchPositionAsync(
+          WATCH_OPTIONS,
+          (position) => {
+            const latLng = toLatLng(position);
+            // TEMPORAL (diagnóstico): cada posición nueva que entrega el watcher
+            console.log('[DIAG location] posición recibida', {
+              ...latLng,
+              accuracy: position.coords.accuracy,
+              time: new Date(position.timestamp).toLocaleTimeString(),
+              willSend: shouldSendLocation(lastSentAt, Date.now()),
+            });
+            setLocation(latLng);
+            sendLocation(latLng);
+          },
+          (watchError) => console.log('Error en el seguimiento de ubicación:', watchError),
+        );
+        // si el efecto se limpió mientras se iniciaba el seguimiento, se detiene enseguida
+        if (cancelled) watcher.remove();
+        else subscription = watcher;
+      } catch (watchError) {
+        console.log('No se pudo iniciar el seguimiento:', watchError);
+        if (!cancelled) setTrackingError('No se pudo iniciar el seguimiento de tu ubicación.');
+      }
+    }
+
+    startTracking();
+
+    // limpieza: al pasar a No disponible o salir de la sección Inicio se detiene el seguimiento
+    // y se guarda isAvailable: false
+    return () => {
+      // TEMPORAL (diagnóstico): confirma cuándo se detiene el seguimiento
+      console.log('[DIAG location] deteniendo watchPositionAsync');
+      cancelled = true;
+      subscription?.remove();
+      setDriverAvailability(uid, false).catch((writeError) =>
+        console.log('No se pudo guardar No disponible:', writeError),
+      );
+    };
+  }, [active, uid, permissionStatus]);
+
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
-  return { permissionStatus, canAskAgain, location, error, retry };
+  return { permissionStatus, canAskAgain, location, error, trackingError, retry };
 }
