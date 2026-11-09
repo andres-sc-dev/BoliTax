@@ -10,7 +10,10 @@
 - Expo con JavaScript. No usar TypeScript.
 - Navegacion: React Navigation (Stack para el flujo del viaje, Tabs para el registro, Drawer para perfil, historial, ganancias y configuracion). No usar Expo Router.
 - Autenticacion y base de datos: Firebase Auth + Firestore.
-- Mapas: `react-native-maps`. Ubicacion: `expo-location`.
+- Mapas: Leaflet con tiles de OpenStreetMap dentro de `react-native-webview` (sin Google Maps ni Google Cloud). `react-native-webview` tambien se usara para el Checkout Pro de Mercado Pago.
+- Rutas, distancia y duracion: OSRM (servidor publico `router.project-osrm.org`), en lugar de Directions / Distance Matrix.
+- Coordenadas a direccion: Nominatim (maximo 1 peticion por segundo, con User-Agent `BoliTax-app-universitaria`).
+- Ubicacion: `expo-location`.
 - Pagos: Mercado Pago Checkout Pro en modo prueba.
 - Backend: Node + Express en la carpeta `backend/`.
 - Imagenes: Cloudinary.

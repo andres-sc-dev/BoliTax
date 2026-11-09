@@ -10,6 +10,8 @@ import {
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from '../services/firebase';
+import { setDriverAvailability } from '../services/driverStatus';
+import { clearLastAvailability } from '../services/preferences';
 
 const AuthContext = createContext(null);
 
@@ -58,7 +60,20 @@ export function AuthProvider({ children }) {
     return signInWithEmailAndPassword(auth, email.trim(), password);
   }, []);
 
-  const signOut = useCallback(() => firebaseSignOut(auth), []);
+  // AI-assisted: see docs/AI_LOG.md #8
+  // al cerrar sesión el conductor queda No disponible. Sin conexión, Firestore no resuelve la
+  // escritura hasta sincronizar, así que se espera máximo 3 s y la sesión se cierra igual
+  const signOut = useCallback(async () => {
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+      await Promise.race([setDriverAvailability(uid, false), timeout]).catch((error) =>
+        console.log('No se pudo guardar No disponible al cerrar sesión:', error),
+      );
+      await clearLastAvailability(uid);
+    }
+    return firebaseSignOut(auth);
+  }, []);
 
   // se memoriza el valor para no re-renderizar a todos los consumidores en cada render
   const value = useMemo(

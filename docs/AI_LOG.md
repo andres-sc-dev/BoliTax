@@ -266,3 +266,116 @@ Herramientas usadas:
   - Se quitaron todos los logs temporales `[DIAG]`.
   - Archivos y commit: src/services/cloudinary.js, src/services/driverRegistration.js, src/screens/register/DocumentsTab.js, package.json, package-lock.json — 3a85997
   - Verificacion: `npm test` (53 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador: registro completo, fotos en Cloudinary y documento en Firestore con status pending.
+---
+
+### Entrada #7
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 3, Fase A: mapa en la pantalla de Inicio con la ubicacion actual del conductor, sin Google Maps (servicios gratuitos de OpenStreetMap, seccion 7 del documento), y componente de mapa reutilizable
+- Prompt:
+  ```
+  ## Objetivo
+  Implementar la pantalla de Inicio del conductor: mapa con su ubicacion actual, interruptor Disponible / No disponible y envio de la ubicacion en tiempo real a Firestore. Ademas, dejar listo el servicio de rutas que usaran los modulos siguientes. Referencia: seccion 3 (pantalla Inicio, hooks obligatorios) y seccion 7 (APIs) de docs/requisitos-bolitax.pdf.
+
+  ## Decision tomada: sin Google Maps
+  No vamos a usar Google Cloud (no hay API key ni facturacion). Usaremos servicios gratuitos de OpenStreetMap, que el PDF permite en la seccion 7:
+  - Mapa: tiles de OpenStreetMap. Como react-native-maps en Android depende de Google Maps, compara brevemente MapLibre (@maplibre/maplibre-react-native) contra Leaflet dentro de react-native-webview y recomienda una. Criterios: compatibilidad con Expo SDK 58 y nuestro build (Kotlin 2.3.21), riesgo de errores de compilacion nativa, soporte para marcadores y polilineas, y facilidad de explicarlo. Ten en cuenta que react-native-webview tambien lo necesitaremos para Mercado Pago.
+  - Rutas, distancia y duracion: OSRM (servidor publico router.project-osrm.org), en lugar de Directions / Distance Matrix.
+  - Coordenadas a direccion: Nominatim, respetando su limite de 1 peticion por segundo y enviando un User-Agent "BoliTax-app-universitaria".
+  - Actualiza la seccion Stack de CLAUDE.md con esta decision.
+
+  ## Trabajo por fases
+  Al terminar CADA fase: detente, dime como verificarla en el emulador, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: mapa y ubicacion actual (entrada #7)
+  - Instala TODAS las dependencias nativas del modulo en esta fase (libreria de mapa elegida, expo-location si falta), para recompilar una sola vez.
+  - Permiso de ubicacion en primer plano con textos en español. Si el usuario lo niega, mostrar un mensaje claro con boton para reintentar, no un Alert.
+  - HomeScreen muestra el mapa centrado en la ubicacion actual con un marcador del conductor.
+  - Componente de mapa reutilizable en src/components/ (lo usaran viaje en curso e historial), que acepte marcadores y una polilinea.
+
+  ### Fase B: disponibilidad y ubicacion en tiempo real (entrada #8)
+  - Interruptor Disponible / No disponible en Inicio, con useState.
+  - Solo se puede poner Disponible si driver.status === "approved". Si esta "pending", el interruptor se ve deshabilitado con el aviso "Cuenta pendiente de aprobacion".
+  - Hook personalizado useDriverLocation: mientras esta Disponible usa watchPositionAsync y actualiza `drivers/{uid}` con `location: { lat, lng }`, `isAvailable: true` y `locationUpdatedAt` cada pocos segundos (no en cada movimiento minimo; usa distanceInterval/timeInterval razonables). Al pasar a No disponible o salir de la pantalla, detiene el seguimiento en la limpieza del useEffect y guarda `isAvailable: false`.
+  - Guardar el ultimo estado de disponibilidad en AsyncStorage (permitido por el PDF) y restaurarlo al abrir.
+  - Al cerrar sesion, poner isAvailable en false.
+
+  ### Fase C: servicio de rutas (entrada #9)
+  - src/services/routing.js:
+    - getRoute(origin, destination) con OSRM: devuelve { distanceKm, durationMin, coordinates } (coordinates listo para dibujar la polilinea). Redondear distanceKm a 1 decimal y durationMin a entero.
+    - reverseGeocode({ lat, lng }) con Nominatim: devuelve una direccion corta legible.
+    - Manejo de errores y timeout.
+  - Funciones puras de transformacion de la respuesta con tests en Jest (sin llamar a la red en los tests).
+  - Pantalla temporal o boton de prueba en Inicio (marcado TEMPORAL) que dibuje una ruta entre dos puntos de Medellin para verificar visualmente.
+
+  ## Reglas
+  - Todo Firebase solo desde src/services/firebase.js.
+  - Dependencias con `npx expo install`, explicando cada una.
+  - Estilos simples; el diseño va despues.
+  - Comentario `// AI-assisted: see docs/AI_LOG.md #N` segun la fase.
+
+  ## Cierre
+  Muestrame primero: tu comparacion y recomendacion de libreria de mapa, el plan de las 3 fases, las dependencias y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente comparo MapLibre contra Leaflet en react-native-webview y recomendo Leaflet: `react-native-webview` esta versionado por Expo para el SDK 58, no agrega un SDK nativo grande que compilar (riesgo bajo con Kotlin 2.3.21 y CMake) y se reutiliza para Mercado Pago. Presento el plan de las 3 fases. En la Fase A instalo `expo-location` y `react-native-webview`, creo el componente `LeafletMap`, el hook `useDriverLocation` (permiso y posicion actual) y la nueva pantalla de Inicio con el mapa, el marcador del conductor, el manejo del permiso negado y el aviso de cuenta pendiente como franja encima del mapa.
+- Que se uso / modifico / descarto:
+  - Se descarto MapLibre: no esta en el SDK de Expo, su documentacion de Expo no indica compatibilidad con SDK 58 ni con la nueva arquitectura, y compila un SDK nativo grande en C++ (ya hubo problemas de Kotlin y de CMake en este proyecto).
+  - Leaflet 1.9.4 se carga desde unpkg con version fija y hash de integridad (SRI); se verificaron los hashes descargando los archivos. Se usan `circleMarker` para no depender de imagenes de iconos.
+  - El WebView envia el User-Agent `BoliTax-app-universitaria`, como pide la politica de tiles de OpenStreetMap, y el mapa muestra la atribucion "© OpenStreetMap contributors".
+  - La app no dibuja el mapa: le envia los datos con `injectJavaScript` cuando la pagina avisa con `postMessage` que esta lista. El efecto solo se repite cuando cambian los datos serializados.
+  - Si se niega el permiso, la pantalla muestra un mensaje con "Reintentar" y "Abrir ajustes" (cuando Android ya no deja volver a preguntar, solo se puede desde ajustes). En Android el texto del dialogo de permiso lo pone el sistema; `locationWhenInUsePermission` en `app.json` aplica en iOS.
+  - Se quito `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` de `.env.example` y se actualizo la seccion Stack de CLAUDE.md.
+  - Ajuste al aprobar el plan: en la Fase B el seguimiento no debe detenerse al navegar dentro del Stack de Inicio (ahi iran la solicitud entrante y el viaje en curso); se movera al nivel de `HomeStack` con un contexto de disponibilidad.
+  - Ajuste tras probar en el emulador (prompt: "En el emulador a veces sale "Current location is unavailable" porque aun no hay una posicion lista. Haz useDriverLocation mas robusto: si getCurrentPositionAsync falla, intenta getLastKnownPositionAsync como respaldo, y reintenta automaticamente un par de veces con una espera corta antes de mostrar el error. El mensaje de error y el boton Reintentar se mantienen como ultimo recurso."): cada intento pide la posicion actual y, si falla, usa la ultima conocida; se hacen hasta 3 intentos con 2 s de espera entre ellos y solo despues se muestra el error con "Reintentar". Los reintentos se cortan si la pantalla se desmonta. La logica de reintento quedo en la funcion `retryAsync` (src/utils/retryAsync.js), con 4 tests en Jest que usan una espera falsa.
+- Archivos y commit: app.json, package.json, package-lock.json, CLAUDE.md, .env.example, src/components/LeafletMap.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/utils/retryAsync.js, src/utils/__tests__/retryAsync.test.js — 1fde8d0
+- Verificacion: `npm test` (57 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador Pixel_7a: tras activar la ubicacion del emulador y enviar un punto de Medellin desde Extended controls, el mapa de OpenStreetMap aparece centrado en el conductor con su marcador. Al principio salia "Current location is unavailable" porque el emulador no tenia ubicacion enviada; se agrego reintento automatico con respaldo en la ultima ubicacion conocida (retryAsync).
+- Archivos y commit: app.json, package.json, package-lock.json, CLAUDE.md, .env.example, src/components/LeafletMap.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/utils/retryAsync.js, src/utils/__tests__/retryAsync.test.js — 1fde8d0
+- Verificacion: `npm test` (57 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador Pixel_7a: tras activar la ubicacion del emulador y enviar un punto de Medellin desde Extended controls, el mapa de OpenStreetMap aparece centrado en el conductor con su marcador. Al principio salia "Current location is unavailable" porque el emulador no tenia ubicacion enviada; se agrego reintento automatico con respaldo en la ultima ubicacion conocida (retryAsync).
+- Archivos y commit: app.json, package.json, package-lock.json, CLAUDE.md, .env.example, src/components/LeafletMap.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/utils/retryAsync.js, src/utils/__tests__/retryAsync.test.js — 1fde8d0
+- Verificacion: `npm test` (57 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador Pixel_7a: tras activar la ubicacion del emulador y enviar un punto de Medellin desde Extended controls, el mapa de OpenStreetMap aparece centrado en el conductor con su marcador. Al principio salia "Current location is unavailable" porque el emulador no tenia ubicacion enviada; se agrego reintento automatico con respaldo en la ultima ubicacion conocida (retryAsync).
+- Archivos y commit: app.json, package.json, package-lock.json, CLAUDE.md, .env.example, src/components/LeafletMap.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/utils/retryAsync.js, src/utils/__tests__/retryAsync.test.js — 1fde8d0
+- Verificacion: `npm test` (57 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador Pixel_7a: tras activar la ubicacion del emulador y enviar un punto de Medellin desde Extended controls, el mapa de OpenStreetMap aparece centrado en el conductor con su marcador. Al principio salia "Current location is unavailable" porque el emulador no tenia ubicacion enviada; se agrego reintento automatico con respaldo en la ultima ubicacion conocida (retryAsync).
+- Aprendizaje: Aprendí que no siempre la librería más "pro" es la mejor opción: MapLibre es nativa y más fluida, pero nos podía dar los mismos problemas de compilación que ya habíamos tenido, así que con Leaflet dentro de un WebView el mapa funciona sin pelear con Gradle y además ese mismo WebView me sirve después para Mercado Pago. También entendí que no necesito Google Maps ni dar una tarjeta para tener mapas, porque OpenStreetMap es gratis. Con el emulador aprendí que hay que encenderle la ubicación y enviarle un punto a mano, y que la app tiene que aguantar cuando la ubicación no está lista, por eso se agregaron reintentos en vez de mostrar el error de una.
+---
+
+### Entrada #8
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 3, Fase B: interruptor Disponible / No disponible en Inicio y envio de la ubicacion del conductor en tiempo real a Firestore mientras esta Disponible (seccion 3 del documento)
+- Prompt: "continua" (el detalle de la Fase B esta en el prompt de la Entrada #7, con el ajuste dado al aprobar el plan: "El seguimiento NO debe detenerse al navegar dentro del Stack de Inicio, porque ahi iran las pantallas de solicitud entrante y viaje en curso (modulos 4 y 5), y el conductor debe seguir enviando su ubicacion durante el viaje. "Salir de la pantalla" significa salir de la seccion Inicio del Drawer (ir a Historial, Ganancias o Perfil). Usa el foco del HomeStack completo (por ejemplo, el estado de navegacion del Drawer) en lugar de useIsFocused de HomeScreen, o mueve el seguimiento a un nivel que cubra todo el Stack de Inicio. Explicame la opcion que elijas.")
+- Resumen de la respuesta: El agente creo `AvailabilityContext` dentro de `HomeStack` (estado del interruptor con useState, restauracion desde AsyncStorage y regla de cuenta aprobada), extendio `useDriverLocation` con `watchPositionAsync` y escritura en `drivers/{uid}` (limpieza en useEffect que detiene el seguimiento y guarda `isAvailable: false`), agrego el servicio `driverStatus`, la funcion pura `shouldSendLocation` con tests, el interruptor en Inicio y la escritura de No disponible al cerrar sesion.
+- Que se uso / modifico / descarto:
+  - Opcion elegida para "salir de la pantalla": `useIsFocused()` llamado dentro de `HomeStack`. Como `HomeStack` es la pantalla "Inicio" del Drawer, es true mientras se vea cualquier pantalla del Stack de Inicio y false al ir a Historial, Ganancias o Perfil. Se descarto leer el estado de navegacion del Drawer porque obliga a comparar nombres de rutas a mano. El contexto permite que las pantallas del viaje (modulos 4 y 5) lean la disponibilidad y la ubicacion sin duplicar el seguimiento.
+  - El seguimiento esta activo solo si: el conductor eligio Disponible, la cuenta esta `approved` y la seccion Inicio tiene el foco. Al volver a Inicio se reanuda solo, porque el interruptor conserva lo que eligio el conductor.
+  - `watchPositionAsync` con `timeInterval: 5000` y `distanceInterval: 10`, mas un limite propio de una escritura cada 5 s (`shouldSendLocation`). Al activarse se envia de inmediato la ultima ubicacion conocida. Si el conductor esta quieto no se escribe de nuevo hasta que se mueva 10 m.
+  - Al cerrar sesion se guarda `isAvailable: false` esperando maximo 3 s (sin conexion Firestore no resuelve la escritura hasta sincronizar) y se borra la disponibilidad guardada, para que el cierre de sesion nunca se quede colgado.
+  - La disponibilidad se guarda en AsyncStorage con una clave por usuario (`preferences:lastAvailability:<uid>`), como permite el PDF.
+  - El marcador del conductor se ve verde cuando esta Disponible.
+  - Pendiente para modulos siguientes: `watchPositionAsync` solo funciona con la app en primer plano; si la app pasa a segundo plano, `isAvailable` sigue en true pero la ubicacion deja de actualizarse.
+  - Ajuste tras probar en el emulador (prompt: "Al cambiar la ubicacion desde Extended controls del emulador, la app no recibe la nueva posicion: ni el marcador ni Firestore se actualizan. Cambia watchPositionAsync a Accuracy.High (el emulador simula la ubicacion por GPS) y verifica que el watcher realmente reciba las actualizaciones. Agrega un console.log temporal [DIAG location] cada vez que llegue una posicion nueva para comprobarlo."): el seguimiento paso de `Accuracy.Balanced` a `Accuracy.High`, que pide el proveedor GPS. Con logs temporales `[DIAG location]` se comprobo que el watcher recibe las posiciones nuevas y que Firestore se actualiza; despues se quitaron los logs. Se mantuvo `distanceInterval: 10` y se acepto la limitacion de segundo plano.
+- Archivos y commit: src/context/AvailabilityContext.js, src/navigation/HomeStack.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/services/driverStatus.js, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/utils/locationThrottle.js, src/utils/__tests__/locationThrottle.test.js — b85ee49
+- Verificacion: npm test (61 tests, 6 suites), npx expo export --platform android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a con la cuenta aprobada: al activar Disponible el marcador se pone verde y en Firestore aparecen isAvailable true, location y locationUpdatedAt. Al cambiar el punto desde Extended controls, location se actualiza en Firestore. Al pasar a No disponible queda isAvailable false.
+- Aprendizaje: Aprendí que la ubicación en tiempo real no es mandar datos a cada rato, sino controlar cada cuánto se escribe en la base de datos para no gastar el cupo gratis de Firestore, por eso se limita a una escritura cada 5 segundos y solo si el conductor se movió. También entendí que el seguimiento tiene que apagarse solo cuando el conductor se pone No disponible, cierra sesión o sale de la sección de Inicio, y que si lo amarraba solo a la pantalla de Inicio se iba a apagar en pleno viaje. Y con el emulador aprendí que el botón Set Location es el que realmente manda la ubicación, y que a veces la consola de Firestore no se refresca sola.
+
+---
+
+### Entrada #9
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 3, Fase C: servicio de rutas con OSRM (ruta, distancia y duracion) y Nominatim (coordenadas a direccion), con funciones puras probadas en Jest y un boton temporal para ver una ruta en el mapa
+- Prompt: "Fase B probada y con commit (b85ee49): la ubicacion se actualiza en Firestore al cambiar el punto del emulador. Mantengo distanceInterval en 10 y acepto la limitacion de segundo plano. Si quedaron logs [DIAG location], quitalos. Continua con la Fase C." (el detalle de la Fase C esta en el prompt de la Entrada #7)
+- Resumen de la respuesta: El agente quito los logs `[DIAG location]`, creo `src/utils/routeParsers.js` (parseOsrmRoute, formatShortAddress, getNominatimWait e isValidLatLng) con 14 tests sin red, el servicio `src/services/routing.js` (getRoute con OSRM y reverseGeocode con Nominatim, timeout de 10 s y errores con codigo) y un boton TEMPORAL en Inicio que dibuja la ruta del Parque Berrio al Parque Lleras con su distancia, duracion y direccion de origen.
+- Que se uso / modifico / descarto:
+  - Antes de conectar la pantalla, el agente consulto una vez OSRM y Nominatim con los puntos de prueba para confirmar la forma real de las respuestas. Nominatim devolvio la ciudad como "Perimetro Urbano Medellin"; el parser la limpia a "Medellin" y hay un test con esa respuesta real.
+  - OSRM entrega la geometria GeoJSON como `[lng, lat]`; el parser la convierte a `{ lat, lng }` para la polilinea. Distancia en km con 1 decimal y duracion en minutos enteros.
+  - Nominatim: una cola garantiza maximo 1 peticion por segundo (`getNominatimWait`), se envia el User-Agent `BoliTax-app-universitaria` y un cache en memoria (maximo 100 direcciones) evita repetir consultas del mismo punto.
+  - Errores con codigo: `routing/timeout` (AbortController a los 10 s), `routing/network`, `routing/no-route`, `routing/no-address`, `routing/http-error`, `routing/invalid-input` y `routing/unknown`, todos con mensaje en español.
+  - La deteccion de error de red ("fetch failed:") se copio de `cloudinary.js` en vez de moverla a un archivo compartido, para no modificar archivos fuera del plan.
+  - En un test, un `try/catch` que habria pasado en silencio si no se lanzaba el error se cambio por una verificacion estricta.
+  - La ruta real Berrio -> Lleras da 6,2 km y 10 min (no es el ejemplo de 8,5 km de la seccion 5).
+- Archivos y commit: src/utils/routeParsers.js, src/utils/__tests__/routeParsers.test.js, src/services/routing.js, src/screens/HomeScreen.js, src/hooks/useDriverLocation.js (sin logs DIAG), docs/AI_LOG.md (ajuste de la Entrada #8) — 6d059ff
+- Verificacion: npm test (75 tests, 7 suites), npx expo export --platform android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: el boton TEMPORAL "Probar ruta" dibuja la linea entre el Parque Berrio y el Parque Lleras, ajusta el zoom para mostrar la ruta completa y muestra la distancia, la duracion y la direccion de origen. "Quitar ruta" borra la linea.
+- Aprendizaje: Aprendí que para calcular rutas, distancias y tiempos no necesito pagar Google, porque OSRM y Nominatim hacen lo mismo gratis, pero hay que respetar sus reglas, como mandar máximo una petición por segundo a Nominatim e identificar la app. También entendí que las respuestas de una API casi nunca vienen como uno las necesita: OSRM manda las coordenadas al revés (primero longitud y luego latitud) y Nominatim devuelve la ciudad con un nombre largo, entonces es mejor tener funciones que limpien esos datos y probarlas con tests sin depender de internet. Y aprendí que toda llamada a internet necesita un tiempo límite y mensajes de error claros, para que la app no se quede colgada si algo falla.
