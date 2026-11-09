@@ -134,6 +134,29 @@ Herramientas usadas:
   - Dependencias instaladas con `npx expo install`: `@react-navigation/native`, `native-stack`, `drawer`, `bottom-tabs`, `react-native-screens`, `react-native-safe-area-context`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-worklets`, `@react-native-async-storage/async-storage`, `@react-native-community/datetimepicker` y `expo-image-picker`. Reanimated no necesita configurar Babel: `babel-preset-expo` lo hace solo en SDK 58.
   - `validateEmail` y `validateRequired` se crearon en esta fase porque el Login los necesita; el resto de validadores llegan en la Fase B.
   - `src/services/preferences.js` queda listo pero todavia no se usa: se conecta en la Fase B con el campo Idioma del registro.
-- Archivos y commit: App.js, app.json, package.json, package-lock.json, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/navigation/(RootNavigator, AuthStack, AppDrawer, HomeStack).js, src/screens/auth/(LoginScreen, RegisterScreen).js, src/screens/(Home, History, Earnings, Profile)Screen.js, src/components/(FormField, PlaceholderScreen).js, src/utils/(authErrors, validators).js y sus tests — [PENDIENTE]
+- Archivos y commit: App.js, app.json, package.json, package-lock.json, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/navigation/(RootNavigator, AuthStack, AppDrawer, HomeStack).js, src/screens/auth/(LoginScreen, RegisterScreen).js, src/screens/(Home, History, Earnings, Profile)Screen.js, src/components/(FormField, PlaceholderScreen).js, src/utils/(authErrors, validators).js y sus tests — 48c2d4e (HEAD -> main) feat: agrega navegacion base, sesion con AuthContext y pantalla de login
 - Verificacion: `npm test` con 15 tests pasando (3 suites), `npx expo-doctor` sin problemas (20/20) y `npx expo export --platform android` genera el bundle sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Aprendizaje: Aprendí que la app decide qué mostrar según si hay alguien con sesión iniciada: si no hay, muestra el login, y si hay, muestra el menú lateral. Mientras Firebase revisa si ya había una sesión guardada, sale una pantallita de carga para que no se vea el login un segundo y luego cambie. También entendí que cuando uno "escucha" cambios de Firebase hay que apagar esa escucha cuando ya no se necesita, porque si no se quedan corriendo por detrás. Lo que más me costó fue que la app no compilaba porque Windows no acepta rutas de archivos muy largas; tocó activar una opción de Windows y actualizar una herramienta del SDK de Android para que funcionara. Y me di cuenta de que si le pido al agente que instale todo lo que necesita de una sola vez, me ahorro tener que compilar varias veces.
+
+---
+
+### Entrada #5
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Fase B del registro: formulario completo en 3 pestañas (Datos personales, Vehiculo, Documentos y pagos) con todas las validaciones de la seccion 2 del documento, sin envio
+- Prompt: "continua" (el detalle de la Fase B esta en el prompt de la Entrada #4)
+- Resumen de la respuesta: El agente creo los validadores puros de la seccion 2 en `src/utils/validators.js` con sus tests, un RegisterContext que comparte el estado del formulario entre las 3 pestañas y calcula los errores con useMemo, la navegacion Tab del registro con un indicador rojo en las pestañas con errores, componentes propios (SelectField, Checkbox, DateField, PhotoField) y las 3 pantallas del formulario. El boton "Enviar registro" solo se habilita cuando las 3 pestañas son validas.
+- Que se uso / modifico / descarto:
+  - Los errores solo se muestran en campos que el usuario ya toco (al salir de un campo de texto, o al elegir una opcion, fecha o foto). Al salir de una pestaña se marcan todos sus campos como tocados, para que se vean sus errores y el indicador.
+  - Los validadores que dependen de la fecha reciben `today` como parametro, para que los tests no cambien segun el dia.
+  - La placa se convierte a mayusculas mientras se escribe y otra vez antes de validar; el formato de moto (ABC12D) se rechaza porque el documento pide formato de carro.
+  - La tecnico-mecanica se exige si año actual - año del vehiculo >= 2. Si no aplica, sus campos se ocultan y no generan errores.
+  - El campo Idioma toma su valor inicial de AsyncStorage y guarda alli el cambio (solo preferencia; la interfaz sigue en español).
+  - El texto de terminos calcula el porcentaje desde `PRICING.commissionRate` ("20 %").
+  - Decision del agente pendiente de confirmar: el numero de licencia se valida como obligatorio y solo numeros (en Colombia coincide con la cedula), porque el documento no da un formato.
+  - Las fechas de vencimiento no tienen fecha minima en el selector, para que la validacion "posterior a hoy" sea visible al probar.
+  - En esta fase el boton "Enviar registro" solo muestra un mensaje; el envio real es la Fase C.
+- Archivos y commit: src/utils/validators.js, src/utils/__tests__/validators.test.js, src/config/registerOptions.js, src/context/RegisterContext.js, src/navigation/RegisterTabs.js, src/screens/auth/RegisterScreen.js, src/screens/register/(PersonalDataTab, VehicleTab, DocumentsTab).js, src/components/(SelectField, Checkbox, DateField, PhotoField).js — [PENDIENTE]
+- Verificacion: `npm test` con 48 tests pasando (3 suites) y `npx expo export --platform android` sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
 - Aprendizaje: [PENDIENTE]

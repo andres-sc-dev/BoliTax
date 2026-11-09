@@ -1,7 +1,12 @@
-// AI-assisted: see docs/AI_LOG.md #4
-// Placeholder: el registro en 3 pestañas se implementa en la Fase B.
-import PlaceholderScreen from '../../components/PlaceholderScreen';
+// AI-assisted: see docs/AI_LOG.md #5
+// Pantalla de registro: comparte el estado del formulario entre las 3 pestañas.
+import { RegisterProvider } from '../../context/RegisterContext';
+import RegisterTabs from '../../navigation/RegisterTabs';
 
 export default function RegisterScreen() {
-  return <PlaceholderScreen title="Registro" />;
+  return (
+    <RegisterProvider>
+      <RegisterTabs />
+    </RegisterProvider>
+  );
 }
