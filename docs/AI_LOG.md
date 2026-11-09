@@ -60,11 +60,87 @@ Herramientas usadas:
 - Objetivo: Conectar la app con Firebase (Auth, Firestore y Cloud Messaging), comprobar la conexion con una escritura de prueba en Firestore y lograr que compilara el development build en Android
 - Prompt 1 (conectar Firebase):
   ```
-  [PENDIENTE: pegar prompt literal de Firebase]
+ - Prompt 1 (conectar Firebase):
+  ```
+  ## Objetivo
+  Conectar la app a Firebase usando Authentication, Firestore y Cloud Messaging.
+  Esta tarea es solo de configuración: no crees pantallas ni componentes de interfaz.
+
+  ## Referencia
+  Sección 7 del PDF de especificaciones, que exige usar `@react-native-firebase/messaging`
+  para las notificaciones. Léela antes de proponer nada y respeta esa exigencia.
+
+  ## Requisitos
+
+  1. Decisión de librería: antes de instalar nada, compara usar `@react-native-firebase`
+     contra el SDK web de Firebase (`firebase`) en este proyecto con Expo. Cubre como mínimo
+     soporte de Authentication, Firestore y Cloud Messaging en cada opción, compatibilidad con
+     Expo (Expo Go vs. development build) y esfuerzo de configuración. Recomiéndame una opción
+     y justifica tu recomendación con razones concretas. Si tu recomendación contradice la
+     sección 7 del PDF, dímelo explícitamente y explica por qué.
+
+  2. Paquete Android: el identificador es `com.andressc.bolitax` y debe quedar
+     configurado en `app.json` (`android.package`), junto con cualquier plugin que
+     la opción elegida necesite.
+
+  3. Archivo `google-services.json`: ya está en la raíz del proyecto. Referéncialo
+     únicamente por su ruta (`./google-services.json`) en la configuración.
+     NO lo abras, NO lo leas y NO copies su contenido en ningún archivo ni en tu respuesta.
+
+  4. Punto de acceso único: crea un archivo en `src/services/` (por ejemplo
+     `src/services/firebase.js`) desde el cual el resto de la app importe Firebase.
+     Ningún otro archivo debe inicializar ni importar Firebase directamente.
+
+  5. Pasos manuales: en la consola de Firebase YA hice esto: habilité Authentication con
+     correo/contraseña, creé Firestore (modo prueba, ubicación nam5) y registré la app
+     Android con el paquete com.andressc.bolitax. Lista aparte SOLO lo que falte y me toque
+     hacer a mí.
+
+  6. Entorno: antes del plan, verifica si mi equipo tiene lo necesario para compilar
+     localmente (JDK, Android SDK, variable ANDROID_HOME, emulador) y dime si falta algo.
+
+  7. El código generado lleva el comentario `// AI-assisted: see docs/AI_LOG.md #3`.
+
+  ## Criterios de aceptación
+  - `npx expo run:android` compila sin errores.
+  - La app abre en el emulador sin cerrarse.
+  - Una escritura de prueba en Firestore (un documento simple, por ejemplo en una colección
+    `test`) se ejecuta al arrancar o mediante una función de prueba, y puedo ver ese
+    documento en la consola de Firebase.
+  - La escritura de prueba está claramente marcada como temporal para poder
+    quitarla después.
+
+  ## Cierre
+  No escribas código todavía. Primero muéstrame:
+  1. El resultado de la verificación de mi entorno (punto 6).
+  2. Tu comparación y recomendación (punto 1).
+  3. El plan paso a paso.
+  4. La lista de dependencias que instalarías, con su propósito.
+  5. Los pasos manuales que aún me tocan en la consola de Firebase.
+
+  Espera mi aprobación antes de instalar o modificar cualquier archivo.
+  ```
   ```
 - Prompt 2 (error de compilacion):
   ```
-  [PENDIENTE: pegar prompt literal del error de Kotlin]
+  - Prompt 2 (error de compilacion):
+  ```
+  La compilacion con `npx expo run:android` fallo. Este es el error real (el resto son advertencias):
+
+  Execution failed for task ':react-native-firebase_auth:compileDebugKotlin'.
+  e: firebase-auth-25.0.0-api.jar ... Module was compiled with an incompatible version of Kotlin. The binary version of its metadata is 2.4.0, expected version is 2.2.0.
+
+  Contexto del build: Gradle 9.4.1, Kotlin 2.2.10, KSP 2.2.10-2.0.2, firebase.bom 35.0.2 (valor por defecto de RNFirebase 27.1), compileSdk 37, JDK 17.
+
+  Diagnostica la causa y proponme la solucion mas estable. Considera al menos:
+  1. Subir la version de Kotlin con expo-build-properties (revisa si KSP y Expo SDK 58 lo soportan).
+  2. Fijar un firebase BoM anterior compatible con Kotlin 2.2.
+  Consulta la documentacion de Expo y de React Native Firebase antes de decidir.
+
+  Restricciones: la carpeta android/ se genera sola (CNG), asi que la solucion debe ir en app.json, plugins o archivos de configuracion, nunca editando android/ a mano.
+
+  Muestrame la causa, la opcion que recomiendas y por que. No apliques nada hasta que apruebe.
+  ```
   ```
 - Resumen de la respuesta: El agente propuso usar React Native Firebase en lugar del SDK web y creo `src/services/firebase.js` como punto de acceso unico (instancias de auth, db y messaging, y re-exporta las funciones de Firestore que se necesitan). Configuro `app.json` con el paquete Android `com.andressc.bolitax`, la ruta a `google-services.json` y los config plugins de Firebase; agrego `google-services.json` al `.gitignore` y quito del `.env.example` las variables `EXPO_PUBLIC_FIREBASE_*` del SDK web, que ya no se usan. Agrego una escritura de prueba TEMPORAL (`src/services/firestoreTestWrite.js` y un `useEffect` en `App.js`) para comprobar la conexion. Ante el error de compilacion de Kotlin, subio la version de Kotlin con `expo-build-properties`. Confirmada la conexion, se borro la escritura de prueba.
 - Que se uso / modifico / descarto:
@@ -135,7 +211,7 @@ Herramientas usadas:
   - `validateEmail` y `validateRequired` se crearon en esta fase porque el Login los necesita; el resto de validadores llegan en la Fase B.
   - `src/services/preferences.js` queda listo pero todavia no se usa: se conecta en la Fase B con el campo Idioma del registro.
 - Archivos y commit: App.js, app.json, package.json, package-lock.json, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/navigation/(RootNavigator, AuthStack, AppDrawer, HomeStack).js, src/screens/auth/(LoginScreen, RegisterScreen).js, src/screens/(Home, History, Earnings, Profile)Screen.js, src/components/(FormField, PlaceholderScreen).js, src/utils/(authErrors, validators).js y sus tests — 48c2d4e
-- Verificacion: `npm test` con 15 tests pasando (3 suites), `npx expo-doctor` sin problemas (20/20) y `npx expo export --platform android` genera el bundle sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Verificacion: `npm test` con 15 tests pasando (3 suites), `npx expo-doctor` sin problemas (20/20) y `npx expo export --platform android` genera el bundle sin errores. 
 - Aprendizaje: Aprendí que la app decide qué mostrar según si hay alguien con sesión iniciada: si no hay, muestra el login, y si hay, muestra el menú lateral. Mientras Firebase revisa si ya había una sesión guardada, sale una pantallita de carga para que no se vea el login un segundo y luego cambie. También entendí que cuando uno "escucha" cambios de Firebase hay que apagar esa escucha cuando ya no se necesita, porque si no se quedan corriendo por detrás. Lo que más me costó fue que la app no compilaba porque Windows no acepta rutas de archivos muy largas; tocó activar una opción de Windows y actualizar una herramienta del SDK de Android para que funcionara. Y me di cuenta de que si le pido al agente que instale todo lo que necesita de una sola vez, me ahorro tener que compilar varias veces.
 
 ---
@@ -158,7 +234,7 @@ Herramientas usadas:
   - Las fechas de vencimiento no tienen fecha minima en el selector, para que la validacion "posterior a hoy" sea visible al probar.
   - En esta fase el boton "Enviar registro" solo muestra un mensaje; el envio real es la Fase C.
 - Archivos y commit: src/utils/validators.js, src/utils/__tests__/validators.test.js, src/config/registerOptions.js, src/context/RegisterContext.js, src/navigation/RegisterTabs.js, src/screens/auth/RegisterScreen.js, src/screens/register/(PersonalDataTab, VehicleTab, DocumentsTab).js, src/components/(SelectField, Checkbox, DateField, PhotoField).js — 68f407a
-- Verificacion: `npm test` con 48 tests pasando (3 suites) y `npx expo export --platform android` sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Verificacion: `npm test` con 48 tests pasando (3 suites) y `npx expo export --platform android` sin errores. 
 - Aprendizaje: Aprendí que es mejor tener las validaciones como funciones aparte del formulario, porque así se pueden probar con tests sin abrir la app, y que las que dependen de la fecha reciben "hoy" como parámetro para que los tests no fallen según el día en que se corran. También entendí que si el formulario está dividido en pestañas, los datos tienen que vivir en un contexto compartido; si no, se pierden al cambiar de pestaña. Me gustó que el botón de enviar solo se active cuando las 3 pestañas están bien y que cada pestaña muestre un punto si tiene errores, porque así el usuario sabe dónde está el problema sin que le salten alertas. Y aprendí que hacer componentes propios (listas, checkbox) en vez de instalar librerías evita tener que recompilar la app y después es más fácil darles el diseño que yo quiera.
 
 ---
@@ -188,5 +264,5 @@ Herramientas usadas:
   - Dependencia: `expo-file-system` solo existia dentro de `node_modules/expo/node_modules` y no se podia importar desde `src/`. Con aprobacion se declaro con `npx expo install expo-file-system` (~58.0.13, la misma version que ya trae expo; sin codigo nativo nuevo ni recompilar).
   - Manejo de errores: solo los errores reales de red (el `FetchError` del fetch de Expo, cuyo mensaje empieza por "fetch failed:") muestran "sin conexion". Cualquier otro fallo de la subida muestra "No se pudo subir una de las fotos. Intentalo de nuevo." y el detalle tecnico queda en `error.cause` y en la consola. Tambien se valida que el archivo de la foto exista antes de subirlo.
   - Se quitaron todos los logs temporales `[DIAG]`.
-  - Archivos y commit: src/services/cloudinary.js, src/services/driverRegistration.js, src/screens/register/DocumentsTab.js, package.json, package-lock.json — [PENDIENTE]
+  - Archivos y commit: src/services/cloudinary.js, src/services/driverRegistration.js, src/screens/register/DocumentsTab.js, package.json, package-lock.json — 3a85997
   - Verificacion: `npm test` (53 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. Probado en el emulador: registro completo, fotos en Cloudinary y documento en Firestore con status pending.
