@@ -30,6 +30,8 @@
 - Explica brevemente las decisiones importantes: yo debo sustentar este codigo ante la profesora.
 - Si un requisito es ambiguo o falta informacion, pregunta en vez de suponer.
 - No hagas commits ni push; los hago yo.
+- No ejecutes `npx expo lint`: el proyecto no tiene ESLint configurado.
+- Responde siempre en español.
 
 ## Convenciones
 - Nombres de variables, funciones, archivos y campos de base de datos en ingles (camelCase; componentes en PascalCase).

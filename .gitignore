@@ -53,3 +53,6 @@ functions/.env.*
 # firebase service account keys
 serviceAccountKey.json
 *-firebase-adminsdk-*.json
+
+# firebase config (contiene llaves del proyecto)
+google-services.json
