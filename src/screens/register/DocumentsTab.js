@@ -69,7 +69,9 @@ export default function DocumentsTab({ navigation }) {
       setRegistering(false);
       setSubmitting(false);
       if (error.code === 'cloudinary/upload-failed') {
-        setSubmitErrors({ general: `No se pudieron subir las fotos: ${error.message}` });
+        // el mensaje ya viene en español desde cloudinary.js; el detalle técnico queda en la consola
+        console.log('Error al subir fotos a Cloudinary:', error.cause);
+        setSubmitErrors({ general: error.message });
         return;
       }
       const { field, message } = getAuthErrorMessage(error.code);
