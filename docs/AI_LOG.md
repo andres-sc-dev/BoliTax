@@ -160,3 +160,23 @@ Herramientas usadas:
 - Archivos y commit: src/utils/validators.js, src/utils/__tests__/validators.test.js, src/config/registerOptions.js, src/context/RegisterContext.js, src/navigation/RegisterTabs.js, src/screens/auth/RegisterScreen.js, src/screens/register/(PersonalDataTab, VehicleTab, DocumentsTab).js, src/components/(SelectField, Checkbox, DateField, PhotoField).js — [PENDIENTE]
 - Verificacion: `npm test` con 48 tests pasando (3 suites) y `npx expo export --platform android` sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
 - Aprendizaje: [PENDIENTE]
+
+---
+
+### Entrada #6
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Fase C del registro: enviar el formulario (fotos a Cloudinary, cuenta en Firebase Auth y documento `drivers/{uid}` con `status: "pending"`) y mostrar en Inicio el aviso de cuenta pendiente
+- Prompt: "Fase B probada y con commit (68f407a). Confirmo tus 3 decisiones (licencia numerica, opciones de listas y fechas sin bloqueo). Ya cree el .env con EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME y EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET (preset unsigned). Continua con la Fase C." (el detalle de la Fase C esta en el prompt de la Entrada #4)
+- Resumen de la respuesta: El agente presento un plan de la Fase C y, tras la aprobacion, creo el servicio de subida a Cloudinary (preset unsigned, sin API secret), el servicio `registerDriver`, la funcion pura `buildDriverDocument` con sus tests, un flag `registering` en AuthContext para que la app no salte al Drawer a mitad del envio, el manejo de errores del envio debajo de cada campo o como mensaje general, y el aviso "Cuenta pendiente de aprobacion" en Inicio.
+- Que se uso / modifico / descarto:
+  - Orden del envio distinto al del prompt: primero se suben las fotos, luego se crea la cuenta y al final se guarda el documento. Asi, si fallan las fotos no queda una cuenta de Auth sin datos. Si falla el guardado del documento, se borra la cuenta recien creada (`deleteUser`) para poder reintentar con el mismo correo.
+  - Al crear la cuenta, Firebase inicia sesion de inmediato; el flag `registering` mantiene el formulario en pantalla hasta terminar.
+  - Un correo ya registrado se muestra en el campo correo y la app navega a la pestaña Datos personales; los errores de red o de Cloudinary se muestran como mensaje general encima del boton (nunca en Alert).
+  - Las fotos se guardan en la carpeta `bolitax/drivers/<documento>` de Cloudinary.
+  - El documento guarda `commissionRateAccepted` con la comision aceptada al registrarse; la contraseña nunca se guarda (hay un test que lo comprueba).
+  - No se cambiaron las reglas de Firestore (se dejan para el modulo final) ni se agregaron dependencias. `.env.example` ya tenia las variables de Cloudinary.
+- Archivos y commit: src/services/cloudinary.js, src/services/driverRegistration.js, src/services/firebase.js, src/utils/buildDriverDocument.js, src/utils/__tests__/buildDriverDocument.test.js, src/context/AuthContext.js, src/context/RegisterContext.js, src/navigation/RootNavigator.js, src/screens/register/DocumentsTab.js, src/screens/HomeScreen.js — [PENDIENTE]
+- Verificacion: `npm test` con 53 tests pasando (4 suites) y `npx expo export --platform android` sin errores. [PENDIENTE: registro completo en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]

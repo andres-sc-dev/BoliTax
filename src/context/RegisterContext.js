@@ -52,6 +52,11 @@ export function RegisterProvider({ children }) {
   const [form, setForm] = useState(INITIAL_FORM);
   // campos que el usuario ya tocó: solo a esos se les muestra el error
   const [touched, setTouched] = useState({});
+  // AI-assisted: see docs/AI_LOG.md #6
+  // errores que devuelve el servidor al enviar (ej: correo ya registrado), por campo o 'general'
+  const [submitErrors, setSubmitErrors] = useState({});
+  // true mientras se envía el registro
+  const [submitting, setSubmitting] = useState(false);
 
   // el idioma inicial es la preferencia guardada en AsyncStorage
   useEffect(() => {
@@ -67,6 +72,13 @@ export function RegisterProvider({ children }) {
 
   const setField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
+    // al corregir un campo se borra el error que había devuelto el servidor para ese campo
+    setSubmitErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   }, []);
 
   const touchFields = useCallback((names) => {
@@ -113,16 +125,16 @@ export function RegisterProvider({ children }) {
     [errors, touchFields],
   );
 
-  // error visible de un campo: solo si ya fue tocado
+  // error visible de un campo: primero el del servidor; si no, el de validación si ya fue tocado
   const getError = useCallback(
-    (tab, name) => (touched[name] ? errors[tab][name] : null),
-    [errors, touched],
+    (tab, name) => submitErrors[name] ?? (touched[name] ? errors[tab][name] : null),
+    [errors, touched, submitErrors],
   );
 
   // la pestaña muestra indicador si alguno de sus errores ya es visible
   const tabHasVisibleErrors = useCallback(
-    (tab) => Object.keys(errors[tab]).some((name) => touched[name] && errors[tab][name]),
-    [errors, touched],
+    (tab) => Object.keys(errors[tab]).some((name) => getError(tab, name)),
+    [errors, getError],
   );
 
   const value = useMemo(
@@ -136,8 +148,23 @@ export function RegisterProvider({ children }) {
       tabValid,
       tabHasVisibleErrors,
       allValid: tabValid.personal && tabValid.vehicle && tabValid.documents,
+      submitErrors,
+      setSubmitErrors,
+      submitting,
+      setSubmitting,
     }),
-    [form, setField, setAndTouch, touchFields, touchTab, getError, tabValid, tabHasVisibleErrors],
+    [
+      form,
+      setField,
+      setAndTouch,
+      touchFields,
+      touchTab,
+      getError,
+      tabValid,
+      tabHasVisibleErrors,
+      submitErrors,
+      submitting,
+    ],
   );
 
   return <RegisterContext.Provider value={value}>{children}</RegisterContext.Provider>;

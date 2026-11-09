@@ -20,6 +20,10 @@ export function AuthProvider({ children }) {
   const [driver, setDriver] = useState(null);
   // true mientras Firebase restaura la sesión al abrir la app
   const [initializing, setInitializing] = useState(true);
+  // AI-assisted: see docs/AI_LOG.md #6
+  // true mientras se envía el registro: al crear la cuenta, Firebase ya inicia sesión,
+  // pero la app no debe pasar al Drawer hasta guardar el documento del conductor
+  const [registering, setRegistering] = useState(false);
 
   // escucha los cambios de sesión; la limpieza cancela la suscripción al desmontar
   useEffect(() => {
@@ -58,8 +62,8 @@ export function AuthProvider({ children }) {
 
   // se memoriza el valor para no re-renderizar a todos los consumidores en cada render
   const value = useMemo(
-    () => ({ user, driver, initializing, signIn, signOut }),
-    [user, driver, initializing, signIn, signOut],
+    () => ({ user, driver, initializing, registering, setRegistering, signIn, signOut }),
+    [user, driver, initializing, registering, signIn, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

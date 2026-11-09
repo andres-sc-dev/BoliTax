@@ -1,13 +1,15 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Pestaña 3 del registro: documentos, cuenta de Mercado Pago, términos y envío.
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Checkbox from '../../components/Checkbox';
 import DateField from '../../components/DateField';
 import FormField from '../../components/FormField';
 import PhotoField from '../../components/PhotoField';
 import { PRICING } from '../../config/pricing';
+import { useAuth } from '../../context/AuthContext';
 import { useRegister, useTouchTabOnBlur } from '../../context/RegisterContext';
+import { registerDriver } from '../../services/driverRegistration';
+import { getAuthErrorMessage } from '../../utils/authErrors';
 import { requiresTechnicalReview } from '../../utils/validators';
 
 const TAB = 'documents';
@@ -21,10 +23,26 @@ const TAB_NAMES = {
   documents: 'Documentos y pagos',
 };
 
+// AI-assisted: see docs/AI_LOG.md #6
+// pestaña donde está cada campo que puede devolver error Firebase Auth
+const FIELD_TAB_ROUTES = { email: 'PersonalData', password: 'PersonalData' };
+
 export default function DocumentsTab({ navigation }) {
-  const { form, setField, setAndTouch, touchFields, getError, tabValid, allValid } = useRegister();
+  const {
+    form,
+    setField,
+    setAndTouch,
+    touchFields,
+    getError,
+    tabValid,
+    allValid,
+    submitErrors,
+    setSubmitErrors,
+    submitting,
+    setSubmitting,
+  } = useRegister();
+  const { setRegistering } = useAuth();
   useTouchTabOnBlur(navigation, TAB);
-  const [submitMessage, setSubmitMessage] = useState(null);
 
   const needsTechnicalReview = requiresTechnicalReview(form.year, new Date());
   const pendingTabs = Object.keys(TAB_NAMES).filter((tab) => !tabValid[tab]);
@@ -36,9 +54,31 @@ export default function DocumentsTab({ navigation }) {
     error: getError(TAB, name),
   });
 
-  const handleSubmit = () => {
-    // el envío real (Cloudinary + Firebase) se conecta en la Fase C
-    setSubmitMessage('Formulario válido. El envío se conecta en la siguiente fase.');
+  // AI-assisted: see docs/AI_LOG.md #6
+  const handleSubmit = async () => {
+    setSubmitErrors({});
+    setSubmitting(true);
+    // mientras registering sea true, la app no pasa al Drawer aunque ya exista el usuario
+    setRegistering(true);
+    try {
+      await registerDriver(form);
+      // listo: al desactivar registering, RootNavigator muestra el Drawer
+      // (esta pantalla se desmonta, por eso no se actualiza más su estado)
+      setRegistering(false);
+    } catch (error) {
+      setRegistering(false);
+      setSubmitting(false);
+      if (error.code === 'cloudinary/upload-failed') {
+        setSubmitErrors({ general: `No se pudieron subir las fotos: ${error.message}` });
+        return;
+      }
+      const { field, message } = getAuthErrorMessage(error.code);
+      setSubmitErrors({ [field]: message });
+      // si el error es de un campo de otra pestaña, se lleva al usuario a esa pestaña
+      if (FIELD_TAB_ROUTES[field]) {
+        navigation.navigate(FIELD_TAB_ROUTES[field]);
+      }
+    }
   };
 
   return (
@@ -131,14 +171,22 @@ export default function DocumentsTab({ navigation }) {
         </View>
       ) : null}
 
+      {submitErrors.general ? <Text style={styles.generalError}>{submitErrors.general}</Text> : null}
+
       <Pressable
-        style={[styles.button, !allValid && styles.buttonDisabled]}
+        style={[styles.button, (!allValid || submitting) && styles.buttonDisabled]}
         onPress={handleSubmit}
-        disabled={!allValid}
+        disabled={!allValid || submitting}
       >
-        <Text style={styles.buttonText}>Enviar registro</Text>
+        {submitting ? (
+          <View style={styles.sendingRow}>
+            <ActivityIndicator color="#fff" />
+            <Text style={styles.buttonText}>  Enviando registro…</Text>
+          </View>
+        ) : (
+          <Text style={styles.buttonText}>Enviar registro</Text>
+        )}
       </Pressable>
-      {submitMessage && allValid ? <Text style={styles.success}>{submitMessage}</Text> : null}
     </ScrollView>
   );
 }
@@ -157,5 +205,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { backgroundColor: '#999' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  success: { color: '#2e7d32', marginTop: 12, textAlign: 'center' },
+  sendingRow: { flexDirection: 'row', alignItems: 'center' },
+  generalError: { color: '#c62828', marginBottom: 12, textAlign: 'center' },
 });

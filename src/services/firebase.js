@@ -23,3 +23,8 @@ export {
   signOut,
 } from '@react-native-firebase/auth';
 export { doc, onSnapshot } from '@react-native-firebase/firestore';
+
+// AI-assisted: see docs/AI_LOG.md #6
+// funciones usadas al enviar el registro del conductor
+export { createUserWithEmailAndPassword, deleteUser } from '@react-native-firebase/auth';
+export { setDoc } from '@react-native-firebase/firestore';

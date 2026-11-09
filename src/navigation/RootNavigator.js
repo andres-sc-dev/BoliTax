@@ -6,7 +6,7 @@ import AppDrawer from './AppDrawer';
 import AuthStack from './AuthStack';
 
 export default function RootNavigator() {
-  const { user, initializing } = useAuth();
+  const { user, initializing, registering } = useAuth();
 
   // mientras Firebase restaura la sesión guardada no se sabe si mostrar Login o Drawer
   if (initializing) {
@@ -17,7 +17,9 @@ export default function RootNavigator() {
     );
   }
 
-  return user ? <AppDrawer /> : <AuthStack />;
+  // AI-assisted: see docs/AI_LOG.md #6
+  // durante el envío del registro se sigue mostrando el formulario aunque ya exista el usuario
+  return user && !registering ? <AppDrawer /> : <AuthStack />;
 }
 
 const styles = StyleSheet.create({
