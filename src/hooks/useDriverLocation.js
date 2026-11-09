@@ -123,20 +123,11 @@ export function useDriverLocation({ uid = null, active = false } = {}) {
       setTrackingError(null);
       // al activarse se envía de inmediato la última ubicación conocida
       if (locationRef.current) sendLocation(locationRef.current);
-      // TEMPORAL (diagnóstico): confirma que el seguimiento arranca
-      console.log('[DIAG location] iniciando watchPositionAsync', WATCH_OPTIONS);
       try {
         const watcher = await Location.watchPositionAsync(
           WATCH_OPTIONS,
           (position) => {
             const latLng = toLatLng(position);
-            // TEMPORAL (diagnóstico): cada posición nueva que entrega el watcher
-            console.log('[DIAG location] posición recibida', {
-              ...latLng,
-              accuracy: position.coords.accuracy,
-              time: new Date(position.timestamp).toLocaleTimeString(),
-              willSend: shouldSendLocation(lastSentAt, Date.now()),
-            });
             setLocation(latLng);
             sendLocation(latLng);
           },
@@ -156,8 +147,6 @@ export function useDriverLocation({ uid = null, active = false } = {}) {
     // limpieza: al pasar a No disponible o salir de la sección Inicio se detiene el seguimiento
     // y se guarda isAvailable: false
     return () => {
-      // TEMPORAL (diagnóstico): confirma cuándo se detiene el seguimiento
-      console.log('[DIAG location] deteniendo watchPositionAsync');
       cancelled = true;
       subscription?.remove();
       setDriverAvailability(uid, false).catch((writeError) =>

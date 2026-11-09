@@ -354,6 +354,28 @@ Herramientas usadas:
   - La disponibilidad se guarda en AsyncStorage con una clave por usuario (`preferences:lastAvailability:<uid>`), como permite el PDF.
   - El marcador del conductor se ve verde cuando esta Disponible.
   - Pendiente para modulos siguientes: `watchPositionAsync` solo funciona con la app en primer plano; si la app pasa a segundo plano, `isAvailable` sigue en true pero la ubicacion deja de actualizarse.
-- Archivos y commit: src/context/AvailabilityContext.js, src/navigation/HomeStack.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/services/driverStatus.js, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/utils/locationThrottle.js, src/utils/__tests__/locationThrottle.test.js — [PENDIENTE]
-- Verificacion: `npm test` (61 tests, 6 suites), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+  - Ajuste tras probar en el emulador (prompt: "Al cambiar la ubicacion desde Extended controls del emulador, la app no recibe la nueva posicion: ni el marcador ni Firestore se actualizan. Cambia watchPositionAsync a Accuracy.High (el emulador simula la ubicacion por GPS) y verifica que el watcher realmente reciba las actualizaciones. Agrega un console.log temporal [DIAG location] cada vez que llegue una posicion nueva para comprobarlo."): el seguimiento paso de `Accuracy.Balanced` a `Accuracy.High`, que pide el proveedor GPS. Con logs temporales `[DIAG location]` se comprobo que el watcher recibe las posiciones nuevas y que Firestore se actualiza; despues se quitaron los logs. Se mantuvo `distanceInterval: 10` y se acepto la limitacion de segundo plano.
+- Archivos y commit: src/context/AvailabilityContext.js, src/navigation/HomeStack.js, src/hooks/useDriverLocation.js, src/screens/HomeScreen.js, src/services/driverStatus.js, src/services/firebase.js, src/services/preferences.js, src/context/AuthContext.js, src/utils/locationThrottle.js, src/utils/__tests__/locationThrottle.test.js — b85ee49
+- Verificacion: npm test (61 tests, 6 suites), npx expo export --platform android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a con la cuenta aprobada: al activar Disponible el marcador se pone verde y en Firestore aparecen isAvailable true, location y locationUpdatedAt. Al cambiar el punto desde Extended controls, location se actualiza en Firestore. Al pasar a No disponible queda isAvailable false.
+- Aprendizaje: Aprendí que la ubicación en tiempo real no es mandar datos a cada rato, sino controlar cada cuánto se escribe en la base de datos para no gastar el cupo gratis de Firestore, por eso se limita a una escritura cada 5 segundos y solo si el conductor se movió. También entendí que el seguimiento tiene que apagarse solo cuando el conductor se pone No disponible, cierra sesión o sale de la sección de Inicio, y que si lo amarraba solo a la pantalla de Inicio se iba a apagar en pleno viaje. Y con el emulador aprendí que el botón Set Location es el que realmente manda la ubicación, y que a veces la consola de Firestore no se refresca sola.
+
+---
+
+### Entrada #9
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 3, Fase C: servicio de rutas con OSRM (ruta, distancia y duracion) y Nominatim (coordenadas a direccion), con funciones puras probadas en Jest y un boton temporal para ver una ruta en el mapa
+- Prompt: "Fase B probada y con commit (b85ee49): la ubicacion se actualiza en Firestore al cambiar el punto del emulador. Mantengo distanceInterval en 10 y acepto la limitacion de segundo plano. Si quedaron logs [DIAG location], quitalos. Continua con la Fase C." (el detalle de la Fase C esta en el prompt de la Entrada #7)
+- Resumen de la respuesta: El agente quito los logs `[DIAG location]`, creo `src/utils/routeParsers.js` (parseOsrmRoute, formatShortAddress, getNominatimWait e isValidLatLng) con 14 tests sin red, el servicio `src/services/routing.js` (getRoute con OSRM y reverseGeocode con Nominatim, timeout de 10 s y errores con codigo) y un boton TEMPORAL en Inicio que dibuja la ruta del Parque Berrio al Parque Lleras con su distancia, duracion y direccion de origen.
+- Que se uso / modifico / descarto:
+  - Antes de conectar la pantalla, el agente consulto una vez OSRM y Nominatim con los puntos de prueba para confirmar la forma real de las respuestas. Nominatim devolvio la ciudad como "Perimetro Urbano Medellin"; el parser la limpia a "Medellin" y hay un test con esa respuesta real.
+  - OSRM entrega la geometria GeoJSON como `[lng, lat]`; el parser la convierte a `{ lat, lng }` para la polilinea. Distancia en km con 1 decimal y duracion en minutos enteros.
+  - Nominatim: una cola garantiza maximo 1 peticion por segundo (`getNominatimWait`), se envia el User-Agent `BoliTax-app-universitaria` y un cache en memoria (maximo 100 direcciones) evita repetir consultas del mismo punto.
+  - Errores con codigo: `routing/timeout` (AbortController a los 10 s), `routing/network`, `routing/no-route`, `routing/no-address`, `routing/http-error`, `routing/invalid-input` y `routing/unknown`, todos con mensaje en español.
+  - La deteccion de error de red ("fetch failed:") se copio de `cloudinary.js` en vez de moverla a un archivo compartido, para no modificar archivos fuera del plan.
+  - En un test, un `try/catch` que habria pasado en silencio si no se lanzaba el error se cambio por una verificacion estricta.
+  - La ruta real Berrio -> Lleras da 6,2 km y 10 min (no es el ejemplo de 8,5 km de la seccion 5).
+- Archivos y commit: src/utils/routeParsers.js, src/utils/__tests__/routeParsers.test.js, src/services/routing.js, src/screens/HomeScreen.js, src/hooks/useDriverLocation.js (sin logs DIAG), docs/AI_LOG.md (ajuste de la Entrada #8) — [PENDIENTE]
+- Verificacion: `npm test` (75 tests, 7 suites), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: prueba del boton TEMPORAL en el emulador Pixel_7a]
 - Aprendizaje: [PENDIENTE]

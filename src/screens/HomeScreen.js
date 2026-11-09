@@ -1,6 +1,7 @@
 // AI-assisted: see docs/AI_LOG.md #7
 // Inicio del conductor: mapa con su ubicación actual e interruptor Disponible / No disponible
 // (sección 3). La ubicación y la disponibilidad vienen de AvailabilityContext (HomeStack).
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -13,8 +14,19 @@ import {
 import LeafletMap from '../components/LeafletMap';
 import { useAuth } from '../context/AuthContext';
 import { useAvailability } from '../context/AvailabilityContext';
+import { getRoute, reverseGeocode } from '../services/routing';
+
+// AI-assisted: see docs/AI_LOG.md #9
+// TEMPORAL: puntos de prueba en Medellín para verificar el servicio de rutas (borrar luego)
+const TEST_ORIGIN = { lat: 6.2502, lng: -75.5682 }; // Parque Berrío
+const TEST_DESTINATION = { lat: 6.2088, lng: -75.5675 }; // Parque Lleras
 
 export default function HomeScreen() {
+  // AI-assisted: see docs/AI_LOG.md #9
+  // TEMPORAL: estado de la ruta de prueba
+  const [testRoute, setTestRoute] = useState(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testError, setTestError] = useState(null);
   const { driver } = useAuth();
   const {
     permissionStatus,
@@ -79,21 +91,74 @@ export default function HomeScreen() {
     );
   }
 
+  // AI-assisted: see docs/AI_LOG.md #9
+  // TEMPORAL: pide la ruta y la dirección de origen en paralelo, o quita la ruta si ya está
+  const handleTestRoute = async () => {
+    if (testRoute) {
+      setTestRoute(null);
+      return;
+    }
+    setTestLoading(true);
+    setTestError(null);
+    try {
+      const [route, originAddress] = await Promise.all([
+        getRoute(TEST_ORIGIN, TEST_DESTINATION),
+        reverseGeocode(TEST_ORIGIN),
+      ]);
+      setTestRoute({ ...route, originAddress });
+    } catch (routeError) {
+      console.log('Error en la ruta de prueba:', routeError.code, routeError.cause);
+      setTestError(routeError.message);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const driverMarker = {
+    id: 'driver',
+    ...location,
+    label: 'Tú',
+    // AI-assisted: see docs/AI_LOG.md #8
+    // verde si está Disponible, negro si no
+    color: isAvailable ? '#2e7d32' : '#111111',
+  };
+
   return (
     <View style={styles.container}>
       <LeafletMap
         center={location}
-        markers={[
-          {
-            id: 'driver',
-            ...location,
-            label: 'Tú',
-            // AI-assisted: see docs/AI_LOG.md #8
-            // verde si está Disponible, negro si no
-            color: isAvailable ? '#2e7d32' : '#111111',
-          },
-        ]}
+        markers={
+          testRoute
+            ? [
+                driverMarker,
+                { id: 'origin', ...TEST_ORIGIN, label: 'Origen (prueba)', color: '#1565c0' },
+                { id: 'destination', ...TEST_DESTINATION, label: 'Destino (prueba)', color: '#c62828' },
+              ]
+            : [driverMarker]
+        }
+        polyline={testRoute?.coordinates ?? []}
+        fitToContent={Boolean(testRoute)}
       />
+
+      {/* AI-assisted: see docs/AI_LOG.md #9 — TEMPORAL: prueba del servicio de rutas */}
+      <View style={styles.testPanel}>
+        {testRoute ? (
+          <Text style={styles.testText}>
+            {testRoute.distanceKm} km · {testRoute.durationMin} min{'\n'}
+            Origen: {testRoute.originAddress}
+          </Text>
+        ) : null}
+        {testError ? <Text style={styles.errorText}>{testError}</Text> : null}
+        <Pressable style={styles.testButton} onPress={handleTestRoute} disabled={testLoading}>
+          {testLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>
+              {testRoute ? 'Quitar ruta (TEMPORAL)' : 'Probar ruta (TEMPORAL)'}
+            </Text>
+          )}
+        </Pressable>
+      </View>
 
       {/* AI-assisted: see docs/AI_LOG.md #8 */}
       <View style={styles.card}>
@@ -179,4 +244,22 @@ const styles = StyleSheet.create({
   noticeText: { fontSize: 13, color: '#5c3b00' },
   hint: { marginTop: 8, fontSize: 13, color: '#555' },
   errorText: { marginTop: 8, fontSize: 13, color: '#c62828' },
+  // AI-assisted: see docs/AI_LOG.md #9 — TEMPORAL
+  testPanel: {
+    position: 'absolute',
+    bottom: 24,
+    left: 12,
+    right: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    elevation: 4,
+  },
+  testText: { fontSize: 14, color: '#222', marginBottom: 8 },
+  testButton: {
+    backgroundColor: '#1565c0',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
 });
