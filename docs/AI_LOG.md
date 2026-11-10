@@ -466,3 +466,87 @@ Herramientas usadas:
 - Archivos y commit: index.js, src/services/firebase.js, src/services/notifications.js, src/services/driverStatus.js, src/hooks/usePushToken.js, src/hooks/useOpenFromNotification.js, src/context/TripContext.js, src/navigation/AppDrawer.js, src/navigation/HomeStack.js, backend/scripts/simulatePassenger.js — e79871d
 - Verificacion: npm test (84 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: al entrar se acepta el permiso de notificaciones y el fcmToken queda guardado en Firestore. Con npm run simulate llega la notificacion "Nueva solicitud de viaje" con el sonido personalizado new_request.mp3. Hubo que regenerar la carpeta android porque los cambios de app.json no se aplicaban, y quitar defaultChannel de expo-notifications por un conflicto en el AndroidManifest con React Native Firebase.
 - Aprendizaje: Aprendí que cuando cambio plugins en app.json la carpeta android no se actualiza sola si ya existe, entonces hay que regenerarla, y que Android no deja cambiar el sonido de un canal de notificaciones ya creado, por eso tocó desinstalar la app. También entendí que dos librerías pueden chocar si configuran la misma cosa, como pasó con el canal por defecto, y que la solución fue quitar lo que sobraba. Y me quedó claro cómo funcionan las notificaciones: con la app abierta el sonido lo pone la app, y en segundo plano lo pone el canal de Android que manda el backend.
+
+---
+
+### Entrada #12
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 5, Fase A: pantalla "Viaje en curso" con la ruta al punto de recogida, "Pasajero a bordo", la ruta al destino y la cancelacion antes de recoger al pasajero (seccion 3 del documento)
+- Prompt:
+  ```
+  ## Objetivo
+  Implementar el flujo del viaje despues de aceptar: ruta al punto de recogida, pasajero a bordo, ruta al destino, finalizar y resumen del viaje. Referencia: seccion 3 (pantallas Viaje en curso y Cobro y resumen, estados del viaje) y seccion 5 (calculo de tarifa) de docs/requisitos-bolitax.pdf.
+
+  ## Contexto
+  - Rutas con src/services/routing.js (OSRM) y el componente src/components/LeafletMap.js (marcadores y polilinea).
+  - Tarifa con calculateFare (la misma funcion usada en la estimacion).
+  - El viaje activo vive en TripContext (activeTrip por onSnapshot). La pantalla depende del campo status del viaje.
+  - La ubicacion del conductor viene de AvailabilityContext (useDriverLocation), que sigue activo en todo el HomeStack.
+  - Los pagos (Mercado Pago y efectivo) se hacen en el modulo siguiente: aqui el viaje termina en status "completed" con paymentStatus "pending".
+
+  ## Trabajo por fases (2 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: viaje en curso (entrada #12)
+  - Reemplaza el placeholder de TripInProgressScreen.
+  - Con status "driver_arriving": mapa con la ubicacion del conductor, el punto de recogida y la ruta OSRM entre ambos. Muestra nombre del pasajero, direccion de recogida, distancia y tiempo estimados.
+  - Boton "Pasajero a bordo": pasa a status "in_progress" con pickedUpAt.
+  - Con status "in_progress": la ruta cambia hacia el destino (marcadores de recogida y destino), con direccion de destino, distancia y tiempo.
+  - Las rutas se calculan una vez al entrar a cada estado, no en cada movimiento (recomendacion del PDF).
+  - Boton "Cancelar viaje" visible solo antes de in_progress: pide confirmacion dentro de la pantalla (no Alert) y pasa a status "cancelled" con cancelledBy "driver" y cancelledAt; vuelve a Inicio.
+  - Si el conductor cierra y abre la app en medio del viaje, debe volver a la pantalla correcta segun el status (TripContext ya recupera el viaje activo; asegura la navegacion).
+  - Funcion pura con tests en Jest para las transiciones de estado permitidas (por ejemplo canTransition(from, to)), usada por los servicios antes de actualizar.
+
+  ### Fase B: finalizar y resumen (entrada #13)
+  - Boton "Finalizar viaje" (solo en in_progress): recalcula la tarifa final con calculateFare usando distanceKm y durationMin del viaje, y guarda fare, commission, driverEarnings, commissionRate (de pricing.js), tip (0), route (coordenadas de la polilinea para dibujarla en el historial) y completedAt, con status "completed" y paymentStatus "pending".
+  - Pantalla TripSummaryScreen (Cobro y resumen): tarifa final, comision, ganancia neta, propina, metodo de pago y estado del pago ("Pendiente" por ahora; el cobro se conecta en el modulo siguiente). Montos en COP con formatCOP.
+  - Boton "Volver al inicio" que regresa a Inicio, el conductor sigue Disponible y puede recibir nuevas solicitudes.
+  - Ajusta TripContext para que un viaje "completed" sin pagar se considere aun activo (para no perder el resumen), pero no bloquee nuevas solicitudes una vez el conductor vuelve al inicio. Explica la decision.
+
+  ## Reglas
+  - Todo Firebase solo desde src/services/firebase.js.
+  - Sin dependencias nuevas salvo que sean indispensables (pregunta primero).
+  - Estilos simples; el diseño va despues.
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+
+  ## Cierre
+  Muestrame primero el plan de las 2 fases. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente presento el plan de las 2 fases. En la Fase A creo la funcion pura `canTransition`/`canCancel` (src/utils/tripStatus.js) con tests, un helper `transitionTrip` en `trips.js` que valida cada cambio de estado dentro de una transaccion, `startTrip` y `cancelTrip`, el hook `useTripRoute` (ruta OSRM una vez por estado), la pantalla "Viaje en curso" con mapa, ruta, datos del pasajero, "Pasajero a bordo" y cancelacion con confirmacion en pantalla, y el componente `ActiveTripRedirect` que lleva a la pantalla correcta segun el estado.
+- Que se uso / modifico / descarto:
+  - Transiciones: `requested -> accepted | rejected`, `accepted -> driver_arriving | cancelled`, `driver_arriving -> in_progress | cancelled`, `in_progress -> completed`, `completed -> paid`; `paid`, `rejected` y `cancelled` son finales. Cancelar solo es posible antes de `in_progress`, como dice la seccion 3.
+  - Todas las acciones (aceptar, rechazar, pasajero a bordo, cancelar) pasan por `transitionTrip`: una transaccion lee el estado actual en Firestore y solo actualiza si `canTransition` lo permite. `acceptTrip` y `rejectTrip` (de la Entrada #10) se pasaron a este helper.
+  - `useTripRoute` lee la ubicacion del conductor desde una ref: el efecto solo depende del id y el estado del viaje (y de si ya hay ubicacion), asi moverse no vuelve a llamar a OSRM.
+  - Navegacion: `ActiveTripRedirect` recuerda `id:estado` del viaje activo y navega a "Viaje en curso" cuando ese valor cambia (viaje recuperado al reabrir la app o cambio de estado). Como solo reacciona a cambios, no obliga a volver si el conductor fue al mapa de inicio. Por eso se quito la navegacion del boton Aceptar: la pantalla se abre cuando Firestore confirma el estado, nunca sin el viaje cargado.
+  - "Finalizar viaje" aparece deshabilitado en `in_progress`; se conecta en la Fase B.
+  - Correccion tras probar en el emulador (prompt: "Bug en TripInProgressScreen: los botones "Pasajero a bordo" (verde) y "Finalizar viaje" (gris) se ven sin texto, solo el color. Revisa el componente del boton (color del texto, que el Text este dentro del Pressable, estilos que lo oculten) y corrigelo para que el texto se vea en todos los botones de la pantalla. Revisa tambien los botones del modal de solicitud y del resumen por si tienen el mismo problema."): la causa era `flex: 1` en el estilo base de los botones. Ese valor solo sirve dentro de una fila (`flexDirection: 'row'`, como la confirmacion de cancelar); en el panel, que es una columna con alto automatico, `flex: 1` deja el alto base del boton en 0, solo se ve el relleno de color y el texto se recorta. Se quito `flex: 1` del estilo base y se agrego `rowButton` solo para los dos botones que comparten fila. En el modal de solicitud los botones y recuadros con `flex: 1` estan dentro de filas, asi que se ven bien; la pantalla de resumen aun no existe (Fase B) y se hara sin ese problema.
+  - Modo demo agregado a esta fase (prompt: "Agrega un modo demo para simular el recorrido del viaje, solo visible en desarrollo (__DEV__): En TripInProgressScreen, un boton "Simular recorrido (demo)" que mueve la ubicacion del conductor a lo largo de la polilinea de la ruta actual (a la recogida en driver_arriving, al destino en in_progress) en unos 10-15 segundos, avanzando por los puntos de la ruta con un intervalo con limpieza en useEffect. La ubicacion simulada debe reemplazar temporalmente la del GPS en AvailabilityContext, para que el marcador se mueva en el mapa y la ubicacion se guarde en Firestore respetando el limite de escrituras existente. Al terminar el recorrido, se detiene en el ultimo punto; el conductor sigue tocando "Pasajero a bordo" o "Finalizar viaje" manualmente. Si se sale de la pantalla o cambia el estado del viaje, la simulacion se detiene y vuelve el GPS real. Usa una funcion pura con tests para calcular la posicion en cada paso. Incluyelo en la Fase A (misma entrada #12)."):
+    - Funcion pura `pointAtProgress(coordinates, progress)` (src/utils/routeSimulation.js) con 6 tests: interpola por distancia (haversine) y no por numero de puntos, para que la velocidad sea pareja aunque OSRM entregue puntos muy juntos en unos tramos y muy separados en otros.
+    - Hook `useRouteSimulation`: recorre la ruta en 12 s con un `setInterval` cada 400 ms, con limpieza en `useEffect`. Al terminar se queda en el ultimo punto. Si cambia el estado del viaje, la pantalla pierde el foco o se desmonta, la limpieza borra la ubicacion simulada y vuelve el GPS real.
+    - `AvailabilityContext` guarda `simulatedLocation` y se la pasa a `useDriverLocation` como `overrideLocation`. El hook la devuelve en lugar de la del GPS y la envia a Firestore por el mismo `sendLocation`. Para eso la ultima escritura paso a una ref compartida (`lastSentAtRef`), asi GPS y simulacion respetan el mismo limite de una escritura cada 5 s. Durante la simulacion el GPS se sigue leyendo pero no se envia.
+    - El boton solo aparece con `__DEV__` (development build) y cuando ya hay ruta; en una build de produccion no existe.
+- Archivos y commit: src/utils/tripStatus.js, src/utils/__tests__/tripStatus.test.js, src/services/trips.js, src/hooks/useTripRoute.js, src/screens/TripInProgressScreen.js, src/navigation/HomeStack.js, src/utils/routeSimulation.js, src/utils/__tests__/routeSimulation.test.js, src/hooks/useRouteSimulation.js, src/hooks/useDriverLocation.js, src/context/AvailabilityContext.js — bbabedd
+- Verificacion: npm test (98 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a con npm run simulate: al aceptar se abre Viaje en curso con la ruta OSRM del conductor a la recogida, la direccion, los km y los minutos. Pasajero a bordo deja in_progress con pickedUpAt y la ruta cambia hacia el destino. Cancelar pide confirmacion dentro de la pantalla y deja cancelled. El modo demo mueve el marcador del conductor por la ruta en unos 12 segundos. Se corrigio un bug donde los botones se veian sin texto por un flex 1 que dejaba su altura en cero.
+- Aprendizaje: Aprendí que un viaje tiene estados que no se pueden saltar, como cancelar cuando el pasajero ya va a bordo, y que es mejor tener esas reglas en un solo lugar con tests en vez de regarlas por toda la app. También entendí que la ruta se calcula una sola vez por cada etapa del viaje y no cada vez que el conductor se mueve, para no gastar peticiones. Con el bug de los botones aprendí que en React Native un flex 1 mal puesto puede dejar un componente con altura cero y parecer que no tiene texto. Y el modo demo me enseñó que se puede simular el movimiento calculando la posición por distancia, para que el taxi avance a velocidad pareja.
+
+---
+
+### Entrada #13
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 5, Fase B: "Finalizar viaje" con la tarifa final calculada por `calculateFare`, pantalla "Cobro y resumen" y regreso al inicio para seguir recibiendo solicitudes (secciones 3 y 5 del documento)
+- Prompt: "continua" (el detalle de la Fase B esta en el prompt de la Entrada #12)
+- Resumen de la respuesta: El agente creo la funcion pura `simplifyRoute` con tests, `finishTrip` (tarifa final con `calculateFare`, comision aplicada, ruta simplificada y transicion `in_progress -> completed` con `paymentStatus: "pending"`), `closeTripSummary`, un segundo listener en `TripContext` para el viaje terminado con el resumen abierto, la pantalla `TripSummaryScreen` y la navegacion al resumen.
+- Que se uso / modifico / descarto:
+  - Tarifa final: se recalcula con la MISMA `calculateFare` de la estimacion, usando `distanceKm` y `durationMin` del viaje, y se guarda `commissionRate` de `pricing.js` para que un cambio futuro de porcentaje no altere el historial (seccion 5).
+  - Ruta guardada: la polilinea OSRM de recogida a destino, reducida a maximo 300 puntos con `simplifyRoute` (conserva el primero y el ultimo), porque OSRM puede devolver miles de puntos y un documento de Firestore no puede pasar de 1 MB. Si la ruta no se pudo calcular, se guarda la linea recta origen-destino para no bloquear el cierre.
+  - Decision sobre el viaje "completed" sin pagar: `TripContext` tiene un segundo listener (`driverId`, `status == "completed"` y `paymentStatus == "pending"`, solo igualdades, sin indice compuesto) y toma el mas reciente que NO tenga `summaryClosedAt` (`summaryTrip`). Se expone `currentTrip = activeTrip ?? summaryTrip`: mientras exista, no se muestran solicitudes nuevas y la navegacion lleva al resumen. Al tocar "Volver al inicio" se guarda `summaryClosedAt` y deja de bloquear. Se eligio un campo en Firestore y no estado local para que el resumen no se pierda si la app se cierra con el resumen abierto, para que el cierre se respete despues de reiniciar la app, y porque el viaje debe seguir en `completed`/`pending` para que el modulo de pagos lo cobre.
+  - Navegacion: al finalizar, la pantalla abre el resumen; `ActiveTripRedirect` ahora usa `currentTrip` y lleva al resumen si el viaje esta `completed` (por ejemplo, al reabrir la app). "Viaje en curso" solo vuelve sola a Inicio si tiene el foco y no hay un resumen abierto, para no competir con la navegacion al resumen.
+  - El panel de Inicio muestra "Ver resumen del viaje" si el viaje termino y el resumen no se cerro.
+  - Los botones de la nueva pantalla se hicieron sin `flex: 1`, por la correccion de la Entrada #12.
+- Archivos y commit: src/utils/simplifyRoute.js, src/utils/__tests__/simplifyRoute.test.js, src/services/trips.js, src/context/TripContext.js, src/screens/TripSummaryScreen.js, src/screens/TripInProgressScreen.js, src/screens/HomeScreen.js, src/navigation/HomeStack.js — c7d070f
+- Verificacion: npm test (104 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: Finalizar viaje deja el viaje en completed con paymentStatus pending, completedAt, fare, commission, driverEarnings, commissionRate 0.2, tip 0 y la ruta simplificada. El resumen muestra los montos en pesos y el estado Pendiente. Volver al inicio guarda summaryClosedAt y un nuevo simulate vuelve a mostrar el modal.
+- Aprendizaje: Aprendí que la tarifa final se calcula con la misma función de la estimación, así lo que vio el conductor al aceptar es lo mismo que se cobra al final. También entendí que Firestore tiene un límite de tamaño por documento, por eso la ruta se reduce a 300 puntos antes de guardarla. Y me gustó la idea de guardar en la base de datos cuándo el conductor cierra el resumen, porque así si se cierra la app no se pierde el resumen y el viaje queda listo para cobrarse después.

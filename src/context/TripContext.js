@@ -6,8 +6,8 @@ import { useAudioPlayer } from 'expo-audio';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTripRequests } from '../hooks/useTripRequests';
 import { collection, db, onSnapshot, query, where } from '../services/firebase';
-import { acceptTrip, rejectTrip } from '../services/trips';
-import { pickNextRequest } from '../utils/tripRequest';
+import { acceptTrip, closeTripSummary, rejectTrip } from '../services/trips';
+import { pickNextRequest, toMillis } from '../utils/tripRequest';
 import { useAuth } from './AuthContext';
 import { useAvailability } from './AvailabilityContext';
 
@@ -44,13 +44,50 @@ export function TripProvider({ children }) {
     return unsubscribe;
   }, [uid]);
 
-  // solo se escuchan solicitudes si está Disponible y no tiene un viaje activo
-  const requests = useTripRequests({ uid, enabled: isAvailable && !activeTrip });
+  // AI-assisted: see docs/AI_LOG.md #13
+  // Viaje terminado (completed) sin pagar cuyo resumen el conductor todavía no cerró.
+  // Decisión: se usa un campo en Firestore (summaryClosedAt) y no estado local, para que:
+  // - si la app se cierra con el resumen abierto, al volver se siga viendo (no se pierde);
+  // - al tocar "Volver al inicio" deje de bloquear solicitudes, incluso tras reiniciar la app;
+  // - el viaje siga en completed/pending para que el módulo de pagos lo cobre.
+  const [summaryTrip, setSummaryTrip] = useState(null);
+  useEffect(() => {
+    if (!uid) {
+      setSummaryTrip(null);
+      return undefined;
+    }
+    // solo filtros de igualdad: no necesita índice compuesto
+    const summaryQuery = query(
+      collection(db, 'trips'),
+      where('driverId', '==', uid),
+      where('status', '==', 'completed'),
+      where('paymentStatus', '==', 'pending'),
+    );
+    const unsubscribe = onSnapshot(
+      summaryQuery,
+      (snapshot) => {
+        const open = snapshot.docs
+          .map((tripDoc) => ({ id: tripDoc.id, ...tripDoc.data() }))
+          .filter((trip) => !trip.summaryClosedAt);
+        // el más reciente (completedAt puede ser null un instante mientras se confirma)
+        open.sort((a, b) => (toMillis(b.completedAt) ?? Infinity) - (toMillis(a.completedAt) ?? Infinity));
+        setSummaryTrip(open[0] ?? null);
+      },
+      (error) => console.log('Error escuchando el resumen del viaje:', error),
+    );
+    return unsubscribe;
+  }, [uid]);
 
-  // mientras haya un viaje activo no se muestran solicitudes nuevas
+  // viaje que "ocupa" al conductor: en curso o con el resumen abierto
+  const currentTrip = activeTrip ?? summaryTrip;
+
+  // solo se escuchan solicitudes si está Disponible y no tiene un viaje en curso ni un resumen abierto
+  const requests = useTripRequests({ uid, enabled: isAvailable && !currentTrip });
+
+  // mientras haya un viaje en curso o un resumen abierto no se muestran solicitudes nuevas
   const pendingRequest = useMemo(
-    () => (activeTrip ? null : pickNextRequest(requests, Date.now())),
-    [requests, activeTrip],
+    () => (currentTrip ? null : pickNextRequest(requests, Date.now())),
+    [requests, currentTrip],
   );
 
   // AI-assisted: see docs/AI_LOG.md #11
@@ -72,10 +109,20 @@ export function TripProvider({ children }) {
   // manejadores con useCallback (sección 3 del PDF)
   const acceptRequest = useCallback((tripId) => acceptTrip(tripId), []);
   const rejectRequest = useCallback((tripId, reason = 'driver') => rejectTrip(tripId, reason), []);
+  // AI-assisted: see docs/AI_LOG.md #13
+  const closeSummary = useCallback((tripId) => closeTripSummary(tripId), []);
 
   const value = useMemo(
-    () => ({ activeTrip, pendingRequest, acceptRequest, rejectRequest }),
-    [activeTrip, pendingRequest, acceptRequest, rejectRequest],
+    () => ({
+      activeTrip,
+      summaryTrip,
+      currentTrip,
+      pendingRequest,
+      acceptRequest,
+      rejectRequest,
+      closeSummary,
+    }),
+    [activeTrip, summaryTrip, currentTrip, pendingRequest, acceptRequest, rejectRequest, closeSummary],
   );
 
   return <TripContext.Provider value={value}>{children}</TripContext.Provider>;

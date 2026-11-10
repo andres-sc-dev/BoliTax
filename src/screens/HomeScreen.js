@@ -19,7 +19,9 @@ export default function HomeScreen({ navigation }) {
   const { driver } = useAuth();
   // AI-assisted: see docs/AI_LOG.md #10
   // viaje activo: si existe, se muestra un acceso directo a "Viaje en curso"
-  const { activeTrip } = useTrip();
+  // AI-assisted: see docs/AI_LOG.md #13 — o al resumen, si el viaje ya terminó y no se cerró
+  const { currentTrip } = useTrip();
+  const tripCompleted = currentTrip?.status === 'completed';
   const {
     permissionStatus,
     canAskAgain,
@@ -97,11 +99,20 @@ export default function HomeScreen({ navigation }) {
       <LeafletMap center={location} markers={[driverMarker]} />
 
       {/* AI-assisted: see docs/AI_LOG.md #10 — acceso al viaje activo */}
-      {activeTrip ? (
+      {currentTrip ? (
         <View style={styles.tripPanel}>
-          <Text style={styles.tripText}>Tienes un viaje en curso con {activeTrip.passengerName}.</Text>
-          <Pressable style={styles.tripButton} onPress={() => navigation.navigate('TripInProgress')}>
-            <Text style={styles.buttonText}>Ver viaje en curso</Text>
+          <Text style={styles.tripText}>
+            {tripCompleted
+              ? `Terminaste el viaje con ${currentTrip.passengerName}.`
+              : `Tienes un viaje en curso con ${currentTrip.passengerName}.`}
+          </Text>
+          <Pressable
+            style={styles.tripButton}
+            onPress={() => navigation.navigate(tripCompleted ? 'TripSummary' : 'TripInProgress')}
+          >
+            <Text style={styles.buttonText}>
+              {tripCompleted ? 'Ver resumen del viaje' : 'Ver viaje en curso'}
+            </Text>
           </Pressable>
         </View>
       ) : null}

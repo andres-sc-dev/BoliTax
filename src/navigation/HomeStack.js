@@ -3,41 +3,58 @@
 // (solicitud entrante, viaje en curso, cobro y resumen).
 import { useIsFocused } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import IncomingRequestModal from '../components/IncomingRequestModal';
 import { AvailabilityProvider } from '../context/AvailabilityContext';
 import { TripProvider, useTrip } from '../context/TripContext';
 import { useOpenFromNotification } from '../hooks/useOpenFromNotification';
 import HomeScreen from '../screens/HomeScreen';
 import TripInProgressScreen from '../screens/TripInProgressScreen';
+import TripSummaryScreen from '../screens/TripSummaryScreen';
 
 const Stack = createNativeStackNavigator();
 
 // AI-assisted: see docs/AI_LOG.md #10
 // Muestra la solicitud entrante encima de cualquier pantalla de la sección Inicio.
 // `navigation` es la del Drawer (HomeStack es la pantalla "Home" del Drawer).
-function IncomingRequestHost({ navigation }) {
+function IncomingRequestHost() {
   const { pendingRequest, acceptRequest, rejectRequest } = useTrip();
 
-  // al aceptar se abre la pantalla del viaje dentro de este Stack
-  const handleAccept = useCallback(
-    async (tripId) => {
-      await acceptRequest(tripId);
-      navigation.navigate('Home', { screen: 'TripInProgress' });
-    },
-    [acceptRequest, navigation],
-  );
-
+  // AI-assisted: see docs/AI_LOG.md #12
+  // al aceptar ya no se navega aquí: ActiveTripRedirect abre "Viaje en curso" cuando
+  // Firestore confirma el nuevo estado (así la pantalla nunca se abre sin el viaje cargado)
   if (!pendingRequest) return null;
   return (
     <IncomingRequestModal
       // key: cada solicitud nueva empieza con su propio temporizador de 15 s
       key={pendingRequest.id}
       request={pendingRequest}
-      onAccept={handleAccept}
+      onAccept={acceptRequest}
       onReject={rejectRequest}
     />
   );
+}
+
+// AI-assisted: see docs/AI_LOG.md #12
+// Lleva a la pantalla que corresponde al estado del viaje activo. Se ejecuta cuando aparece
+// un viaje (por ejemplo, al reabrir la app en medio de un viaje) o cuando cambia su estado.
+// Como solo reacciona a CAMBIOS, no obliga al conductor a volver si fue al mapa de inicio.
+function ActiveTripRedirect({ navigation }) {
+  // AI-assisted: see docs/AI_LOG.md #13
+  // currentTrip incluye el viaje completed con el resumen abierto: en ese caso va al resumen
+  const { currentTrip } = useTrip();
+  const lastKeyRef = useRef(null);
+  const tripKey = currentTrip ? `${currentTrip.id}:${currentTrip.status}` : null;
+  const isCompleted = currentTrip?.status === 'completed';
+
+  useEffect(() => {
+    if (tripKey === lastKeyRef.current) return;
+    lastKeyRef.current = tripKey;
+    if (!tripKey) return;
+    navigation.navigate('Home', { screen: isCompleted ? 'TripSummary' : 'TripInProgress' });
+  }, [tripKey, isCompleted, navigation]);
+
+  return null;
 }
 
 export default function HomeStack({ navigation }) {
@@ -64,8 +81,16 @@ export default function HomeStack({ navigation }) {
             component={TripInProgressScreen}
             options={{ headerShown: false }}
           />
+          {/* AI-assisted: see docs/AI_LOG.md #13 — Cobro y resumen */}
+          <Stack.Screen
+            name="TripSummary"
+            component={TripSummaryScreen}
+            options={{ headerShown: false }}
+          />
         </Stack.Navigator>
-        <IncomingRequestHost navigation={navigation} />
+        <IncomingRequestHost />
+        {/* AI-assisted: see docs/AI_LOG.md #12 */}
+        <ActiveTripRedirect navigation={navigation} />
       </TripProvider>
     </AvailabilityProvider>
   );

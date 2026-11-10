@@ -1,5 +1,9 @@
 // AI-assisted: see docs/AI_LOG.md #10
 // Cambios de estado de un viaje desde la app del conductor (sección 3: estados del viaje).
+import { PRICING } from '../config/pricing';
+import { calculateFare } from '../utils/calculateFare';
+import { simplifyRoute } from '../utils/simplifyRoute';
+import { canTransition } from '../utils/tripStatus';
 import { db, doc, runTransaction, serverTimestamp, updateDoc } from './firebase';
 
 function tripError(code, message) {
@@ -8,26 +12,102 @@ function tripError(code, message) {
   return error;
 }
 
-// Acepta la solicitud. La transacción verifica que siga en "requested": así no se acepta
-// una solicitud que ya venció o que se rechazó en otro lado.
-export async function acceptTrip(tripId) {
+// AI-assisted: see docs/AI_LOG.md #12
+// Cambia el estado del viaje dentro de una transacción: lee el estado ACTUAL en Firestore
+// y solo actualiza si la transición está permitida (canTransition). Así dos acciones que
+// llegan casi juntas (ej: aceptar justo cuando vence el tiempo) no dejan el viaje inconsistente.
+async function transitionTrip(tripId, to, extraFields = {}, invalidMessage) {
   const tripRef = doc(db, 'trips', tripId);
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(tripRef);
-    if (!snapshot.exists() || snapshot.data().status !== 'requested') {
-      throw tripError('trip/not-available', 'Esta solicitud ya no está disponible.');
+    const from = snapshot.exists() ? snapshot.data().status : null;
+    if (!canTransition(from, to)) {
+      throw tripError(
+        'trip/invalid-transition',
+        invalidMessage ?? `El viaje no puede pasar de "${from}" a "${to}".`,
+      );
     }
-    transaction.update(tripRef, { status: 'accepted', acceptedAt: serverTimestamp() });
+    transaction.update(tripRef, { status: to, ...extraFields });
   });
-  // el conductor sale de inmediato hacia el punto de recogida
-  await updateDoc(tripRef, { status: 'driver_arriving' });
+}
+
+// Acepta la solicitud (requested -> accepted) y sale hacia la recogida (-> driver_arriving).
+// Si ya venció o se rechazó, la transición no es válida y se avisa al conductor.
+export async function acceptTrip(tripId) {
+  await transitionTrip(
+    tripId,
+    'accepted',
+    { acceptedAt: serverTimestamp() },
+    'Esta solicitud ya no está disponible.',
+  );
+  await transitionTrip(tripId, 'driver_arriving');
 }
 
 // Rechaza la solicitud; reason es 'driver' (tocó Rechazar) o 'timeout' (se venció el tiempo)
 export function rejectTrip(tripId, reason) {
-  return updateDoc(doc(db, 'trips', tripId), {
-    status: 'rejected',
+  return transitionTrip(tripId, 'rejected', {
     rejectReason: reason,
     rejectedAt: serverTimestamp(),
   });
+}
+
+// AI-assisted: see docs/AI_LOG.md #12
+// "Pasajero a bordo": driver_arriving -> in_progress
+export function startTrip(tripId) {
+  return transitionTrip(tripId, 'in_progress', { pickedUpAt: serverTimestamp() });
+}
+
+// Cancelación del conductor; solo es válida antes de in_progress (ver tripStatus.js)
+export function cancelTrip(tripId) {
+  return transitionTrip(
+    tripId,
+    'cancelled',
+    { cancelledBy: 'driver', cancelledAt: serverTimestamp() },
+    'El viaje ya no se puede cancelar.',
+  );
+}
+
+// AI-assisted: see docs/AI_LOG.md #13
+// "Finalizar viaje": in_progress -> completed.
+// La tarifa final se calcula con la MISMA función de la estimación (calculateFare, sección 5)
+// y se guarda la comisión aplicada, para que un cambio futuro en pricing.js no altere el historial.
+// El pago se registra en el módulo siguiente: por ahora queda paymentStatus "pending".
+export async function finishTrip(trip, routeCoordinates) {
+  const { fare, commission, driverEarnings } = calculateFare({
+    distanceKm: trip.distanceKm,
+    durationMin: trip.durationMin,
+    category: trip.category,
+    tip: 0,
+  });
+
+  // ruta para dibujar en el historial; si OSRM falló, al menos la línea recta del viaje
+  const route =
+    Array.isArray(routeCoordinates) && routeCoordinates.length > 1
+      ? simplifyRoute(routeCoordinates)
+      : [
+          { lat: trip.origin.lat, lng: trip.origin.lng },
+          { lat: trip.destination.lat, lng: trip.destination.lng },
+        ];
+
+  await transitionTrip(
+    trip.id,
+    'completed',
+    {
+      fare,
+      commission,
+      driverEarnings,
+      commissionRate: PRICING.commissionRate,
+      tip: 0,
+      route,
+      completedAt: serverTimestamp(),
+      paymentStatus: 'pending',
+    },
+    'El viaje ya no se puede finalizar.',
+  );
+}
+
+// "Volver al inicio" en el resumen: marca que el conductor ya lo vio.
+// El viaje sigue completed/pending para que el módulo de pagos lo cobre.
+export function closeTripSummary(tripId) {
+  return updateDoc(doc(db, 'trips', tripId), { summaryClosedAt: serverTimestamp() });
 }
