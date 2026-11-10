@@ -1,7 +1,10 @@
 // AI-assisted: see docs/AI_LOG.md #10
 // Cambios de estado de un viaje desde la app del conductor (sección 3: estados del viaje).
+import { PRICING } from '../config/pricing';
+import { calculateFare } from '../utils/calculateFare';
+import { simplifyRoute } from '../utils/simplifyRoute';
 import { canTransition } from '../utils/tripStatus';
-import { db, doc, runTransaction, serverTimestamp } from './firebase';
+import { db, doc, runTransaction, serverTimestamp, updateDoc } from './firebase';
 
 function tripError(code, message) {
   const error = new Error(message);
@@ -62,4 +65,49 @@ export function cancelTrip(tripId) {
     { cancelledBy: 'driver', cancelledAt: serverTimestamp() },
     'El viaje ya no se puede cancelar.',
   );
+}
+
+// AI-assisted: see docs/AI_LOG.md #13
+// "Finalizar viaje": in_progress -> completed.
+// La tarifa final se calcula con la MISMA función de la estimación (calculateFare, sección 5)
+// y se guarda la comisión aplicada, para que un cambio futuro en pricing.js no altere el historial.
+// El pago se registra en el módulo siguiente: por ahora queda paymentStatus "pending".
+export async function finishTrip(trip, routeCoordinates) {
+  const { fare, commission, driverEarnings } = calculateFare({
+    distanceKm: trip.distanceKm,
+    durationMin: trip.durationMin,
+    category: trip.category,
+    tip: 0,
+  });
+
+  // ruta para dibujar en el historial; si OSRM falló, al menos la línea recta del viaje
+  const route =
+    Array.isArray(routeCoordinates) && routeCoordinates.length > 1
+      ? simplifyRoute(routeCoordinates)
+      : [
+          { lat: trip.origin.lat, lng: trip.origin.lng },
+          { lat: trip.destination.lat, lng: trip.destination.lng },
+        ];
+
+  await transitionTrip(
+    trip.id,
+    'completed',
+    {
+      fare,
+      commission,
+      driverEarnings,
+      commissionRate: PRICING.commissionRate,
+      tip: 0,
+      route,
+      completedAt: serverTimestamp(),
+      paymentStatus: 'pending',
+    },
+    'El viaje ya no se puede finalizar.',
+  );
+}
+
+// "Volver al inicio" en el resumen: marca que el conductor ya lo vio.
+// El viaje sigue completed/pending para que el módulo de pagos lo cobre.
+export function closeTripSummary(tripId) {
+  return updateDoc(doc(db, 'trips', tripId), { summaryClosedAt: serverTimestamp() });
 }

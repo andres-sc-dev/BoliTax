@@ -1,7 +1,7 @@
 // AI-assisted: see docs/AI_LOG.md #12
 // Viaje en curso (sección 3 del PDF): la pantalla depende del campo status del viaje.
 // - driver_arriving: ruta del conductor al punto de recogida y botón "Pasajero a bordo".
-// - in_progress: ruta de la recogida al destino (y "Finalizar viaje" en la Fase B).
+// - in_progress: ruta de la recogida al destino y botón "Finalizar viaje" (entrada #13).
 // Cancelar solo es posible antes de in_progress, con confirmación dentro de la pantalla.
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
@@ -11,22 +11,27 @@ import { useAvailability } from '../context/AvailabilityContext';
 import { useTrip } from '../context/TripContext';
 import { useRouteSimulation } from '../hooks/useRouteSimulation';
 import { useTripRoute } from '../hooks/useTripRoute';
-import { cancelTrip, startTrip } from '../services/trips';
+import { cancelTrip, finishTrip, startTrip } from '../services/trips';
 import { canCancel } from '../utils/tripStatus';
 
 export default function TripInProgressScreen({ navigation }) {
-  const { activeTrip: trip } = useTrip();
+  const { activeTrip: trip, summaryTrip } = useTrip();
   const { location } = useAvailability();
   const { route, loading: routeLoading, error: routeError, retry } = useTripRoute(trip, location);
-  // acción en curso: 'start' | 'cancel' | null (bloquea los botones)
+  // acción en curso: 'start' | 'cancel' | 'finish' | null (bloquea los botones)
   const [busy, setBusy] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const isFocused = useIsFocused();
 
-  // sin viaje activo (cancelado, o ya no existe) se vuelve a Inicio
+  // sin viaje activo (cancelado, o ya no existe) se vuelve a Inicio.
+  // AI-assisted: see docs/AI_LOG.md #13
+  // Solo si esta pantalla tiene el foco y no hay un resumen abierto: al finalizar, el viaje
+  // deja de estar "activo" y la navegación al resumen la hace "Finalizar" / ActiveTripRedirect.
+  const hasSummary = Boolean(summaryTrip);
   useEffect(() => {
-    if (!trip) navigation.navigate('HomeMain');
-  }, [trip, navigation]);
+    if (!trip && !hasSummary && isFocused) navigation.navigate('HomeMain');
+  }, [trip, hasSummary, isFocused, navigation]);
 
   // al cambiar de estado se cierra la confirmación de cancelar y se limpia el error
   const status = trip?.status;
@@ -34,7 +39,6 @@ export default function TripInProgressScreen({ navigation }) {
   // AI-assisted: see docs/AI_LOG.md #12
   // modo demo: recorre la ruta actual; se reinicia (y vuelve el GPS) si cambia el estado
   // del viaje o la pantalla pierde el foco
-  const isFocused = useIsFocused();
   const simulation = useRouteSimulation({
     coordinates: route?.coordinates,
     resetKey: `${trip?.id}:${status}:${isFocused}`,
@@ -64,6 +68,13 @@ export default function TripInProgressScreen({ navigation }) {
   };
 
   const handlePickedUp = () => runAction('start', () => startTrip(trip.id));
+
+  // AI-assisted: see docs/AI_LOG.md #13
+  // "Finalizar viaje": guarda tarifa final y ruta, y abre el resumen
+  const handleFinish = async () => {
+    const finished = await runAction('finish', () => finishTrip(trip, route?.coordinates));
+    if (finished) navigation.navigate('TripSummary');
+  };
 
   const handleConfirmCancel = async () => {
     const cancelled = await runAction('cancel', () => cancelTrip(trip.id));
@@ -167,9 +178,17 @@ export default function TripInProgressScreen({ navigation }) {
                 )}
               </Pressable>
             ) : (
-              // "Finalizar viaje" se implementa en la Fase B (entrada #13)
-              <Pressable style={[styles.button, styles.disabledButton]} disabled>
-                <Text style={styles.buttonText}>Finalizar viaje</Text>
+              // AI-assisted: see docs/AI_LOG.md #13 — solo en in_progress
+              <Pressable
+                style={[styles.button, styles.finishButton]}
+                onPress={handleFinish}
+                disabled={busy !== null}
+              >
+                {busy === 'finish' ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Finalizar viaje</Text>
+                )}
               </Pressable>
             )}
             {canCancel(status) ? (
@@ -237,7 +256,7 @@ const styles = StyleSheet.create({
   rowButton: { flex: 1 },
   primaryButton: { backgroundColor: '#2e7d32' },
   dangerButton: { backgroundColor: '#c62828' },
-  disabledButton: { backgroundColor: '#999' },
+  finishButton: { backgroundColor: '#111' },
   outlineButton: { borderWidth: 2, borderColor: '#555' },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   outlineText: { color: '#333', fontWeight: '700', fontSize: 16 },

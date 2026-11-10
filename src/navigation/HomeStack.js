@@ -10,6 +10,7 @@ import { TripProvider, useTrip } from '../context/TripContext';
 import { useOpenFromNotification } from '../hooks/useOpenFromNotification';
 import HomeScreen from '../screens/HomeScreen';
 import TripInProgressScreen from '../screens/TripInProgressScreen';
+import TripSummaryScreen from '../screens/TripSummaryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -39,15 +40,19 @@ function IncomingRequestHost() {
 // un viaje (por ejemplo, al reabrir la app en medio de un viaje) o cuando cambia su estado.
 // Como solo reacciona a CAMBIOS, no obliga al conductor a volver si fue al mapa de inicio.
 function ActiveTripRedirect({ navigation }) {
-  const { activeTrip } = useTrip();
+  // AI-assisted: see docs/AI_LOG.md #13
+  // currentTrip incluye el viaje completed con el resumen abierto: en ese caso va al resumen
+  const { currentTrip } = useTrip();
   const lastKeyRef = useRef(null);
-  const tripKey = activeTrip ? `${activeTrip.id}:${activeTrip.status}` : null;
+  const tripKey = currentTrip ? `${currentTrip.id}:${currentTrip.status}` : null;
+  const isCompleted = currentTrip?.status === 'completed';
 
   useEffect(() => {
     if (tripKey === lastKeyRef.current) return;
     lastKeyRef.current = tripKey;
-    if (tripKey) navigation.navigate('Home', { screen: 'TripInProgress' });
-  }, [tripKey, navigation]);
+    if (!tripKey) return;
+    navigation.navigate('Home', { screen: isCompleted ? 'TripSummary' : 'TripInProgress' });
+  }, [tripKey, isCompleted, navigation]);
 
   return null;
 }
@@ -74,6 +79,12 @@ export default function HomeStack({ navigation }) {
           <Stack.Screen
             name="TripInProgress"
             component={TripInProgressScreen}
+            options={{ headerShown: false }}
+          />
+          {/* AI-assisted: see docs/AI_LOG.md #13 — Cobro y resumen */}
+          <Stack.Screen
+            name="TripSummary"
+            component={TripSummaryScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>

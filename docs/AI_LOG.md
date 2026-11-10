@@ -530,3 +530,23 @@ Herramientas usadas:
 - Archivos y commit: src/utils/tripStatus.js, src/utils/__tests__/tripStatus.test.js, src/services/trips.js, src/hooks/useTripRoute.js, src/screens/TripInProgressScreen.js, src/navigation/HomeStack.js, src/utils/routeSimulation.js, src/utils/__tests__/routeSimulation.test.js, src/hooks/useRouteSimulation.js, src/hooks/useDriverLocation.js, src/context/AvailabilityContext.js — [PENDIENTE]
 - Verificacion: `npm test` (98 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
 - Aprendizaje: [PENDIENTE]
+
+---
+
+### Entrada #13
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 5, Fase B: "Finalizar viaje" con la tarifa final calculada por `calculateFare`, pantalla "Cobro y resumen" y regreso al inicio para seguir recibiendo solicitudes (secciones 3 y 5 del documento)
+- Prompt: "continua" (el detalle de la Fase B esta en el prompt de la Entrada #12)
+- Resumen de la respuesta: El agente creo la funcion pura `simplifyRoute` con tests, `finishTrip` (tarifa final con `calculateFare`, comision aplicada, ruta simplificada y transicion `in_progress -> completed` con `paymentStatus: "pending"`), `closeTripSummary`, un segundo listener en `TripContext` para el viaje terminado con el resumen abierto, la pantalla `TripSummaryScreen` y la navegacion al resumen.
+- Que se uso / modifico / descarto:
+  - Tarifa final: se recalcula con la MISMA `calculateFare` de la estimacion, usando `distanceKm` y `durationMin` del viaje, y se guarda `commissionRate` de `pricing.js` para que un cambio futuro de porcentaje no altere el historial (seccion 5).
+  - Ruta guardada: la polilinea OSRM de recogida a destino, reducida a maximo 300 puntos con `simplifyRoute` (conserva el primero y el ultimo), porque OSRM puede devolver miles de puntos y un documento de Firestore no puede pasar de 1 MB. Si la ruta no se pudo calcular, se guarda la linea recta origen-destino para no bloquear el cierre.
+  - Decision sobre el viaje "completed" sin pagar: `TripContext` tiene un segundo listener (`driverId`, `status == "completed"` y `paymentStatus == "pending"`, solo igualdades, sin indice compuesto) y toma el mas reciente que NO tenga `summaryClosedAt` (`summaryTrip`). Se expone `currentTrip = activeTrip ?? summaryTrip`: mientras exista, no se muestran solicitudes nuevas y la navegacion lleva al resumen. Al tocar "Volver al inicio" se guarda `summaryClosedAt` y deja de bloquear. Se eligio un campo en Firestore y no estado local para que el resumen no se pierda si la app se cierra con el resumen abierto, para que el cierre se respete despues de reiniciar la app, y porque el viaje debe seguir en `completed`/`pending` para que el modulo de pagos lo cobre.
+  - Navegacion: al finalizar, la pantalla abre el resumen; `ActiveTripRedirect` ahora usa `currentTrip` y lleva al resumen si el viaje esta `completed` (por ejemplo, al reabrir la app). "Viaje en curso" solo vuelve sola a Inicio si tiene el foco y no hay un resumen abierto, para no competir con la navegacion al resumen.
+  - El panel de Inicio muestra "Ver resumen del viaje" si el viaje termino y el resumen no se cerro.
+  - Los botones de la nueva pantalla se hicieron sin `flex: 1`, por la correccion de la Entrada #12.
+- Archivos y commit: src/utils/simplifyRoute.js, src/utils/__tests__/simplifyRoute.test.js, src/services/trips.js, src/context/TripContext.js, src/screens/TripSummaryScreen.js, src/screens/TripInProgressScreen.js, src/screens/HomeScreen.js, src/navigation/HomeStack.js — [PENDIENTE]
+- Verificacion: `npm test` (104 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]
