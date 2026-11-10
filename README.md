@@ -14,24 +14,31 @@ El conductor:
 
 ## Capturas de pantalla
 
-> Pendiente: tomar las capturas en el emulador (Pixel 7a) y guardarlas en `docs/screenshots/` con los nombres de la tabla.
-> Con el emulador abierto, desde Git Bash (en PowerShell 5.1 la redirección `>` daña los PNG): `adb exec-out screencap -p > docs/screenshots/<nombre>.png`.
-
-| Pantalla | Archivo | Qué debe mostrar |
-|---|---|---|
-| Animación de inicio | `01-splash.png` | Ícono, logotipo BoliTAX y el taxi detenido sobre la franja de damero. |
-| Inicio de sesión | `02-login.png` | Mitad amarilla con el logotipo y el formulario oscuro. |
-| Registro | `03-register.png` | Pestaña "Datos personales" con un error de validación visible. |
-| Inicio | `04-home.png` | Mapa oscuro, óvalo de ganancias arriba y botón **Disponible** encendido (punto verde). |
-| Menú lateral | `05-drawer.png` | Encabezado amarillo con foto, nombre y estado de la cuenta; ítem activo en amarillo. |
-| Solicitud entrante | `06-request.png` | Modal con el contador de 15 s a mitad de camino y los montos. |
-| Viaje en curso | `07-trip.png` | Ruta amarilla en el mapa y la hoja inferior con km/min y "Pasajero a bordo". |
-| Cobro y resumen | `08-summary.png` | Encabezado con la ganancia neta y el panel de cobro con el estado "Pendiente". |
-| Pago con Wompi | `09-wompi.png` | Checkout de Wompi Sandbox con el encabezado amarillo. |
-| Ganancias | `10-earnings.png` | Tarjeta de saldo con borde amarillo y el periodo "Semana" elegido. |
-| Historial | `11-history.png` | Chips de filtro y varios viajes con su estado de pago. |
-| Detalle del viaje | `12-detail.png` | Mapa con la ruta guardada, montos y calificación. |
-| Perfil | `13-profile.png` | Estado de la cuenta y documentos con su vigencia (en inglés, para mostrar el cambio de idioma). |
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-splash.png" width="220"><br>Animación de inicio</td>
+    <td align="center"><img src="docs/screenshots/02-login.png" width="220"><br>Inicio de sesión</td>
+    <td align="center"><img src="docs/screenshots/03-register.png" width="220"><br>Registro</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/04-home.png" width="220"><br>Inicio</td>
+    <td align="center"><img src="docs/screenshots/05-drawer.png" width="220"><br>Menú lateral</td>
+    <td align="center"><img src="docs/screenshots/06-request.png" width="220"><br>Solicitud entrante</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/07-trip.png" width="220"><br>Viaje en curso</td>
+    <td align="center"><img src="docs/screenshots/08-summary.png" width="220"><br>Resumen del viaje</td>
+    <td align="center"><img src="docs/screenshots/09-wompi.png" width="220"><br>Pago con Wompi</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/10-earnings.png" width="220"><br>Ganancias</td>
+    <td align="center"><img src="docs/screenshots/11-history.png" width="220"><br>Historial</td>
+    <td align="center"><img src="docs/screenshots/12-detail.png" width="220"><br>Detalle del viaje</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/13-profile.png" width="220"><br>Perfil</td>
+  </tr>
+</table>
 
 ---
 
