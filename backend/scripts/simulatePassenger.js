@@ -2,7 +2,8 @@
 // Simulador de pasajero: crea una solicitud de viaje en `trips` con status "requested"
 // para un conductor Disponible y aprobado (no existe app de pasajero).
 //
-// Uso:  npm run simulate
+// Uso:  npm run simulate                       (método de pago aleatorio entre wompi y cash)
+//       npm run simulate -- --payment=wompi    (o --payment=cash)
 //       npm run simulate -- --category=xl --payment=cash
 //
 // Reutiliza el código de la app (una sola fuente de verdad):
@@ -19,7 +20,8 @@ import { MEDELLIN_CENTER, randomPointNear } from '../src/geo.js';
 
 const USER_AGENT = 'BoliTax-app-universitaria';
 const CATEGORIES = Object.keys(PRICING.categoryMultipliers);
-const PAYMENT_METHODS = ['mercadopago', 'cash'];
+// AI-assisted: see docs/AI_LOG.md #14 — Wompi reemplaza a Mercado Pago
+const PAYMENT_METHODS = ['wompi', 'cash'];
 const PASSENGER_NAMES = [
   'Laura Gómez',
   'Santiago Restrepo',

@@ -45,11 +45,14 @@ export function TripProvider({ children }) {
   }, [uid]);
 
   // AI-assisted: see docs/AI_LOG.md #13
-  // Viaje terminado (completed) sin pagar cuyo resumen el conductor todavía no cerró.
-  // Decisión: se usa un campo en Firestore (summaryClosedAt) y no estado local, para que:
+  // Viaje terminado cuyo resumen ("Cobro y resumen") el conductor todavía no cerró.
+  // Decisión: se usa un campo en Firestore y no estado local, para que:
   // - si la app se cierra con el resumen abierto, al volver se siga viendo (no se pierde);
-  // - al tocar "Volver al inicio" deje de bloquear solicitudes, incluso tras reiniciar la app;
-  // - el viaje siga en completed/pending para que el módulo de pagos lo cobre.
+  // - al tocar "Volver al inicio" deje de bloquear solicitudes, incluso tras reiniciar la app.
+  // AI-assisted: see docs/AI_LOG.md #14
+  // Antes se buscaba con paymentStatus == 'pending'; con el cobro, el viaje pasa a approved,
+  // rejected o paid y desaparecería de la pantalla. Por eso ahora se usa summaryOpen == true,
+  // que no depende del estado del pago (y no crece con el historial).
   const [summaryTrip, setSummaryTrip] = useState(null);
   useEffect(() => {
     if (!uid) {
@@ -60,15 +63,12 @@ export function TripProvider({ children }) {
     const summaryQuery = query(
       collection(db, 'trips'),
       where('driverId', '==', uid),
-      where('status', '==', 'completed'),
-      where('paymentStatus', '==', 'pending'),
+      where('summaryOpen', '==', true),
     );
     const unsubscribe = onSnapshot(
       summaryQuery,
       (snapshot) => {
-        const open = snapshot.docs
-          .map((tripDoc) => ({ id: tripDoc.id, ...tripDoc.data() }))
-          .filter((trip) => !trip.summaryClosedAt);
+        const open = snapshot.docs.map((tripDoc) => ({ id: tripDoc.id, ...tripDoc.data() }));
         // el más reciente (completedAt puede ser null un instante mientras se confirma)
         open.sort((a, b) => (toMillis(b.completedAt) ?? Infinity) - (toMillis(a.completedAt) ?? Infinity));
         setSummaryTrip(open[0] ?? null);

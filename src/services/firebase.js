@@ -46,3 +46,7 @@ export {
   onNotificationOpenedApp,
   setBackgroundMessageHandler,
 } from '@react-native-firebase/messaging';
+
+// AI-assisted: see docs/AI_LOG.md #14
+// ID token del conductor: el backend lo verifica antes de crear o verificar un cobro
+export { getIdToken } from '@react-native-firebase/auth';

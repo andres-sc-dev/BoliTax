@@ -550,3 +550,94 @@ Herramientas usadas:
 - Archivos y commit: src/utils/simplifyRoute.js, src/utils/__tests__/simplifyRoute.test.js, src/services/trips.js, src/context/TripContext.js, src/screens/TripSummaryScreen.js, src/screens/TripInProgressScreen.js, src/screens/HomeScreen.js, src/navigation/HomeStack.js — c7d070f
 - Verificacion: npm test (104 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: Finalizar viaje deja el viaje en completed con paymentStatus pending, completedAt, fare, commission, driverEarnings, commissionRate 0.2, tip 0 y la ruta simplificada. El resumen muestra los montos en pesos y el estado Pendiente. Volver al inicio guarda summaryClosedAt y un nuevo simulate vuelve a mostrar el modal.
 - Aprendizaje: Aprendí que la tarifa final se calcula con la misma función de la estimación, así lo que vio el conductor al aceptar es lo mismo que se cobra al final. También entendí que Firestore tiene un límite de tamaño por documento, por eso la ruta se reduce a 300 puntos antes de guardarla. Y me gustó la idea de guardar en la base de datos cuándo el conductor cierra el resumen, porque así si se cierra la app no se pierde el resumen y el viaje queda listo para cobrarse después.
+
+---
+
+### Entrada #14
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 6, Fase A: cobro del viaje con Wompi (Sandbox) siguiendo el flujo de pago obligatorio de la seccion 4 del documento, con la pasarela Wompi en lugar de Mercado Pago
+- Prompt:
+  ```
+  ## Objetivo
+  Implementar el cobro del viaje con pasarela de pagos en modo prueba y la opcion de pago en efectivo. Referencia: seccion 4 (pasarela de pagos, flujo de pago obligatorio, reglas de seguridad, pago en efectivo) y seccion 5 (saldo del conductor) de docs/requisitos-bolitax.pdf.
+
+  ## Decision tomada: Wompi en lugar de Mercado Pago
+  El PDF recomienda Mercado Pago, pero usaremos Wompi (pasarela colombiana de Bancolombia) en modo Sandbox porque tiene un ambiente de pruebas real con llaves de prueba y tarjetas de prueba, sin cuentas de prueba de comprador. La profesora acepta cualquier pasarela que cumpla el mismo flujo. Debe cumplirse EXACTAMENTE el flujo obligatorio de la seccion 4, cambiando Mercado Pago por Wompi:
+  - Las llaves ya estan en backend/.env (NO lo leas): WOMPI_PUBLIC_KEY, WOMPI_PRIVATE_KEY, WOMPI_INTEGRITY_SECRET, WOMPI_API_URL (sandbox). Agrega sus nombres sin valores a backend/.env.example.
+  - Consulta la documentacion oficial de Wompi (docs.wompi.co, Colombia) para el Web Checkout, la firma de integridad y la consulta de transacciones antes de implementar.
+  - Actualiza CLAUDE.md (Stack) con esta decision, y donde el codigo use "mercadopago" como metodo de pago cambialo a "wompi" (simulador, modelo, textos). En el registro, el campo del correo de pagos conserva su nombre en Firestore pero su etiqueta visible pasa a "Correo para recibir pagos".
+
+  ## Trabajo por fases (2 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: cobro con Wompi (entrada #14)
+  Backend:
+  - POST /payments/wompi/checkout con { tripId }: lee el viaje en Firestore y toma el monto de alli (NUNCA del cliente). Solo permite viajes en status "completed" con paymentMethod "wompi". Genera una referencia unica, calcula amount-in-cents y la firma de integridad (SHA256 de referencia + monto en centavos + moneda + secreto de integridad), guarda paymentReference en el viaje y devuelve la URL del Web Checkout de Wompi con redirect-url.
+  - POST /payments/wompi/verify con { tripId, transactionId } (y opcion por referencia si no hay transactionId): consulta la transaccion directamente a Wompi, valida que la referencia y el monto coincidan con el viaje, y actualiza el viaje: paymentStatus ("approved", "pending", "rejected"), paymentId, y si es aprobado status "paid" con paidAt usando la transicion completed -> paid. Nunca confiar solo en la redireccion.
+  App:
+  - Variable EXPO_PUBLIC_API_URL en el .env de la app (no es secreto) para llegar al backend; en el emulador es http://10.0.2.2:3000. Agregala a .env.example. Verifica que el build de desarrollo permita trafico http a esa direccion.
+  - En el resumen del viaje, si el metodo es wompi: boton "Cobrar con Wompi" que pide la URL al backend y abre el checkout en un WebView (react-native-webview ya esta instalado). Al detectar la redirect-url, cierra el WebView, toma el id de la transaccion y llama a verify. Si el usuario cierra el WebView sin terminar, ofrece "Verificar pago" (verify por referencia).
+  - El resumen muestra en tiempo real el estado del pago: Aprobado, Pendiente, Rechazado. Si es rechazado, permite reintentar.
+
+  ### Fase B: efectivo, saldo y cierre (entrada #15)
+  - Si el metodo es cash: boton "Cobro recibido en efectivo" con confirmacion dentro de la pantalla. Deja paymentStatus "cash", status "paid" y paidAt.
+  - Si un pago Wompi fue rechazado, opcion de "Cobrar en efectivo" en su lugar (cambia paymentMethod a cash).
+  - Funcion pura calculateDriverBalance(trips) con tests en Jest: suma driverEarnings de viajes pagados por pasarela y resta la commission de los viajes en efectivo (puede quedar negativo), segun la seccion 4 y 5. Se usara en el modulo de Ganancias.
+  - El resumen muestra como queda el viaje en el saldo (por ejemplo "+$15.360 a tu saldo" o "-$3.840 de comision descontada de tu saldo").
+  - "Volver al inicio" solo se habilita cuando el pago esta resuelto (paid) o permite volver dejando el pago pendiente; explica la decision.
+  - Simulador: metodo de pago aleatorio entre wompi y cash, y argumento --payment=wompi|cash.
+
+  ## Reglas
+  - Las llaves de Wompi solo en el backend; ninguna llave en la app ni en Git.
+  - Todo Firebase en la app solo desde src/services/firebase.js.
+  - Sin dependencias nuevas en la app salvo que sean indispensables (pregunta primero). En backend solo si hace falta.
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+
+  ## Cierre
+  Muestrame primero el plan de las 2 fases, como manejaras la redireccion del WebView y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente consulto la documentacion oficial de Wompi (Web Checkout, firma de integridad, ambientes y llaves, seguimiento de transacciones y datos de prueba) y presento el plan. En la Fase A creo en el backend las funciones puras de Wompi con tests (`node --test`), un middleware que verifica el ID token de Firebase, los endpoints `POST /payments/wompi/checkout` y `POST /payments/wompi/verify` y un manejador de errores; en la app, el servicio `paymentsApi`, el `WompiCheckoutModal` con la intercepcion de la redireccion, funciones puras de la redireccion con tests y el cobro en la pantalla de resumen con el estado del pago en tiempo real.
+- Que se uso / modifico / descarto:
+  - Datos de la documentacion de Wompi usados: checkout `https://checkout.wompi.co/p/` con `public-key`, `currency`, `amount-in-cents`, `reference`, `signature:integrity` y `redirect-url`; firma SHA256 de `<referencia><centavos><moneda><secreto>`; Wompi agrega `?id=` a la redirect-url pero dice "No utilices la redireccion como metodo de validacion"; `GET /transactions/{id}` solo con la llave privada (con la publica da 404); estados finales `APPROVED`, `DECLINED`, `VOIDED` y `ERROR`. La referencia de la API (docs.wompi.co/reference) devolvia 403, asi que la busqueda por referencia (`GET /transactions?reference=`) se comprobo con una peticion de solo lectura al sandbox que imprimio unicamente codigos HTTP (200 con lista), sin mostrar las llaves.
+  - La firma se prueba con el ejemplo oficial de la documentacion (el hash calculado coincide con el publicado).
+  - Redireccion del WebView: la `redirect-url` es `https://example.com/bolitax/wompi-return` (dominio reservado) y nunca se carga: `onShouldStartLoadWithRequest` la detecta, devuelve `false`, lee el `id` y cierra el WebView (con `onNavigationStateChange` como respaldo). El estado del pago NO se toma de la redireccion: `verify` consulta la transaccion a Wompi con la llave privada, valida referencia, monto y moneda, y actualiza el viaje; la pantalla muestra el estado que llega por `onSnapshot`. Si el WebView se cierra sin redireccion, "Verificar pago" busca por la referencia.
+  - Seguridad agregada por el agente: los endpoints exigen el ID token de Firebase (`Authorization: Bearer`) y comprueban que el viaje sea del conductor, para que nadie pueda cobrar ni verificar viajes ajenos. El monto siempre sale del viaje en Firestore (`fare + tip`), nunca del cliente. Cada intento de cobro usa una referencia nueva; `verify` rechaza una transaccion de una referencia anterior.
+  - La transicion `completed -> paid` en el backend usa el mismo `canTransition` de `src/utils/tripStatus.js`, importado directamente (como `calculateFare` en el modulo 4).
+  - Ajuste del modulo 5: el resumen se buscaba con `paymentStatus == "pending"`, asi que al aprobarse o rechazarse el pago el viaje desaparecia de la pantalla. Se cambio a un campo `summaryOpen` (true al finalizar, false al cerrar el resumen), que no depende del estado del pago. La navegacion al resumen ahora depende de que no haya viaje en curso, porque el viaje del resumen puede estar `completed` o `paid`.
+  - El Jest de la app empezo a tomar el test del backend; se excluyo `backend/` con `testPathIgnorePatterns`. El backend corre sus tests con `node --test`, sin dependencias nuevas.
+  - `EXPO_PUBLIC_API_URL` reemplaza en `.env.example` a `EXPO_PUBLIC_BACKEND_URL` y se quito de ahi `MERCADOPAGO_ACCESS_TOKEN` (los secretos del backend estan en `backend/.env.example`). El `AndroidManifest.xml` de debug generado por Expo ya permite trafico http (`usesCleartextTraffic="true"`), asi que el development build llega a `http://10.0.2.2:3000`.
+  - Cambio de Mercado Pago a Wompi: metodos de pago `wompi` y `cash` en el simulador, etiquetas en el modal de solicitud y en el resumen, "Correo para recibir pagos" en el registro (el campo `mercadoPagoEmail` conserva su nombre) y CLAUDE.md (Stack y Seguridad).
+- Archivos y commit: backend/src/wompi.js, backend/src/wompi.test.js, backend/src/authMiddleware.js, backend/src/routes/payments.js, backend/src/server.js, backend/src/firebaseAdmin.js, backend/package.json, backend/.env.example, backend/scripts/simulatePassenger.js, src/services/paymentsApi.js, src/services/firebase.js, src/services/trips.js, src/components/WompiCheckoutModal.js, src/utils/wompiRedirect.js, src/utils/__tests__/wompiRedirect.test.js, src/screens/TripSummaryScreen.js, src/context/TripContext.js, src/navigation/HomeStack.js, src/screens/HomeScreen.js, src/components/IncomingRequestModal.js, src/screens/register/DocumentsTab.js, package.json, .env.example, CLAUDE.md — [PENDIENTE]
+- Verificacion: `npm test` (109 tests), `cd backend && npm test` (5 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores; `/health` responde y los endpoints de pago responden 401 sin token o con un token falso. [PENDIENTE: cobro con tarjetas de prueba en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]
+
+---
+
+### Entrada #15
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 6, Fase B: cobro en efectivo, cambio de Wompi a efectivo, saldo del conductor y cierre del resumen; ademas, corregir un error que aparecia junto al pago aprobado (secciones 4 y 5 del documento)
+- Prompt:
+  ```
+  Fase A probada: 4242 queda Aprobado y 4111 Rechazado. Continua con la Fase B, con estos ajustes:
+  1. Bug: con el pago Aprobado aparece tambien en rojo "No se pudo conectar con el servidor de pagos. Revisa que el backend este encendido." Sospecho que verify se llama dos veces (onShouldStartLoadWithRequest y el respaldo en onNavigationStateChange) y la segunda falla porque el viaje ya esta paid. Evita la doble llamada, haz que verify sobre un viaje ya pagado responda el estado actual sin error, y limpia cualquier error cuando el paymentStatus llegue como approved. En la terminal del backend no aparece ningun error de la peticion; solo "Restarting 'src/server.js'" (modo --watch) y el aviso de que la opcion credentials esta obsoleta. Revisa si el error viene de una segunda llamada a verify o de un reinicio del servidor durante la llamada. Aprovecha y quita el aviso de credentials usando la forma recomendada por firebase-admin, si es sencillo.
+  2. "Verificar pago" solo debe mostrarse si el pago esta pendiente o si se cerro el checkout sin redireccion; no cuando ya esta Rechazado o Aprobado.
+  3. En el resumen permite cambiar de Wompi a efectivo antes de que el pago este aprobado (no solo cuando fue rechazado), con confirmacion dentro de la pantalla, porque el pasajero puede decidir pagar en efectivo al final.
+  ```
+  (el detalle de la Fase B esta en el prompt de la Entrada #14)
+- Resumen de la respuesta: El agente investigo el error junto al pago aprobado y el aviso de `credentials`, cambio la inicializacion de firebase-admin a credenciales por defecto (ADC), limito el `--watch` del backend a `backend/src`, agrego un registro de cada peticion de pago, evito verificaciones simultaneas en la app y oculta los errores cuando el pago ya esta resuelto. Ademas creo la funcion pura `calculateDriverBalance`/`getBalanceImpact` con tests, `markCashPaid` y `switchToCash`, y rehizo el resumen con efectivo, cambio a efectivo, efecto en el saldo y "Volver sin cobrar", todo con confirmaciones dentro de la pantalla.
+- Que se uso / modifico / descarto:
+  - Diagnostico del error: `verify` sobre un viaje ya `paid` ya respondia el estado actual sin error desde la Fase A, asi que una segunda llamada no podia producir ese mensaje. El mensaje "No se pudo conectar con el servidor de pagos" solo sale cuando `fetch` falla a nivel de red: el servidor se reinicio con la peticion en curso o se agoto el tiempo de espera. El modal ya tenia una bandera que evitaba avisar dos veces la redireccion. `node --watch` vigila TODOS los modulos que importa el servidor, incluidos los archivos de la app en `../src/utils` (que el backend comparte) y el `.env`; guardar cualquiera de ellos durante una prueba reinicia el servidor y corta la peticion. El agente no logro reproducir el reinicio con una peticion equivalente, asi que la causa exacta quedo sin confirmar; se corrigieron ambas posibilidades.
+  - Correcciones: `npm run dev` usa `--watch-path=./src` (solo reinicia por cambios del backend); el servidor registra cada peticion de pago con su codigo y duracion; la app ignora una verificacion si ya hay otra en curso; los errores y avisos de pago se limpian al llegar `approved` y nunca se muestran con el viaje pagado; el tiempo de espera paso a 20 s y un tiempo agotado tiene su propio mensaje.
+  - Aviso de `credentials`: no venia del codigo del proyecto. firebase-admin, al inicializarse con `cert(ruta)`, le pasa a Firestore la opcion `credentials`, que google-auth-library marca como obsoleta. Se cambio a `applicationDefault()` con `GOOGLE_APPLICATION_CREDENTIALS` apuntando a la misma llave (la ruta sigue saliendo de `FIREBASE_SERVICE_ACCOUNT_PATH`); se comprobo con una consulta de solo lectura que Firestore y la verificacion de tokens funcionan y que el aviso desaparece.
+  - "Verificar pago" solo aparece con el pago pendiente y un checkout ya abierto; no con Rechazado ni Aprobado.
+  - "Cobrar en efectivo" esta disponible con Wompi mientras el pago no este aprobado (no solo tras un rechazo), con confirmacion en pantalla. `switchToCash` lo valida en una transaccion, y el backend rechaza verificar con Wompi un viaje que ya paso a efectivo.
+  - Saldo (secciones 4 y 5): un viaje pagado por Wompi y aprobado suma `driverEarnings`; uno en efectivo resta `commission`, porque el conductor ya tiene el dinero y la plataforma no cobro su comision; el saldo puede quedar negativo. El resumen muestra el efecto del viaje ("+$15.360 a tu saldo" o "-$3.840 de comision descontada de tu saldo"), y antes de cobrar lo muestra como "Al cobrarse: ...".
+  - Decision sobre "Volver al inicio": con el viaje pagado vuelve directo; sin pagar aparece "Volver sin cobrar" con confirmacion, que cierra el resumen y deja el viaje `completed`/`pending` para cobrarlo despues. Se eligio no obligar a cobrar antes de salir porque, si Wompi o el backend fallan, el conductor quedaria bloqueado sin poder recibir solicitudes.
+  - El simulador ya aceptaba `--payment=wompi|cash` con metodo aleatorio por defecto desde la Fase A; solo se actualizo el comentario de uso.
+- Archivos y commit: backend/src/firebaseAdmin.js, backend/src/server.js, backend/src/routes/payments.js, backend/package.json, backend/scripts/simulatePassenger.js, src/services/paymentsApi.js, src/services/trips.js, src/utils/driverBalance.js, src/utils/__tests__/driverBalance.test.js, src/screens/TripSummaryScreen.js — [PENDIENTE]
+- Verificacion: `npm test` (116 tests), `cd backend && npm test` (5 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores; consulta de solo lectura a Firestore y prueba de `verifyIdToken` con credenciales por defecto, sin el aviso. [PENDIENTE: efectivo, cambio a efectivo y saldo en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]

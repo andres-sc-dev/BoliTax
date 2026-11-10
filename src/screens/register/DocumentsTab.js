@@ -1,5 +1,5 @@
 // AI-assisted: see docs/AI_LOG.md #5
-// Pestaña 3 del registro: documentos, cuenta de Mercado Pago, términos y envío.
+// Pestaña 3 del registro: documentos, correo para recibir pagos, términos y envío.
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Checkbox from '../../components/Checkbox';
 import DateField from '../../components/DateField';
@@ -149,7 +149,8 @@ export default function DocumentsTab({ navigation }) {
 
       <Text style={styles.section}>Pagos</Text>
       <FormField
-        label="Correo de la cuenta de Mercado Pago"
+        // AI-assisted: see docs/AI_LOG.md #14 — el campo en Firestore sigue siendo mercadoPagoEmail
+        label="Correo para recibir pagos"
         placeholder="Donde recibirás tus pagos"
         keyboardType="email-address"
         autoCapitalize="none"

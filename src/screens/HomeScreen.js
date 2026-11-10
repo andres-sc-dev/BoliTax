@@ -20,8 +20,9 @@ export default function HomeScreen({ navigation }) {
   // AI-assisted: see docs/AI_LOG.md #10
   // viaje activo: si existe, se muestra un acceso directo a "Viaje en curso"
   // AI-assisted: see docs/AI_LOG.md #13 — o al resumen, si el viaje ya terminó y no se cerró
-  const { currentTrip } = useTrip();
-  const tripCompleted = currentTrip?.status === 'completed';
+  const { currentTrip, activeTrip } = useTrip();
+  // AI-assisted: see docs/AI_LOG.md #14 — el resumen puede estar completed o ya paid
+  const tripCompleted = Boolean(currentTrip) && !activeTrip;
   const {
     permissionStatus,
     canAskAgain,

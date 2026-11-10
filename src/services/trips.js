@@ -101,13 +101,60 @@ export async function finishTrip(trip, routeCoordinates) {
       route,
       completedAt: serverTimestamp(),
       paymentStatus: 'pending',
+      // AI-assisted: see docs/AI_LOG.md #14
+      // el resumen (Cobro y resumen) queda abierto hasta que el conductor toque "Volver al inicio"
+      summaryOpen: true,
     },
     'El viaje ya no se puede finalizar.',
   );
 }
 
 // "Volver al inicio" en el resumen: marca que el conductor ya lo vio.
-// El viaje sigue completed/pending para que el módulo de pagos lo cobre.
+// Si el pago no se resolvió, el viaje sigue completed/pending para cobrarlo después.
 export function closeTripSummary(tripId) {
-  return updateDoc(doc(db, 'trips', tripId), { summaryClosedAt: serverTimestamp() });
+  return updateDoc(doc(db, 'trips', tripId), {
+    // AI-assisted: see docs/AI_LOG.md #14
+    summaryOpen: false,
+    summaryClosedAt: serverTimestamp(),
+  });
+}
+
+// AI-assisted: see docs/AI_LOG.md #15
+// "Cobro recibido en efectivo": completed -> paid con paymentStatus "cash" (sección 4 del PDF).
+// La plataforma no recibió el dinero, así que la comisión se descuenta del saldo
+// (ver utils/driverBalance.js).
+export async function markCashPaid(tripId) {
+  const tripRef = doc(db, 'trips', tripId);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(tripRef);
+    const trip = snapshot.exists() ? snapshot.data() : null;
+    if (!trip || trip.paymentMethod !== 'cash') {
+      throw tripError('trip/not-cash', 'Este viaje no se cobra en efectivo.');
+    }
+    if (!canTransition(trip.status, 'paid')) {
+      throw tripError('trip/invalid-transition', 'Este viaje ya no se puede marcar como pagado.');
+    }
+    transaction.update(tripRef, { status: 'paid', paymentStatus: 'cash', paidAt: serverTimestamp() });
+  });
+}
+
+// Cambiar el cobro de Wompi a efectivo (el pasajero decidió pagar en efectivo, o Wompi rechazó).
+// Solo mientras el viaje no esté pagado ni el pago de Wompi aprobado.
+export async function switchToCash(tripId) {
+  const tripRef = doc(db, 'trips', tripId);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(tripRef);
+    const trip = snapshot.exists() ? snapshot.data() : null;
+    if (!trip || trip.status !== 'completed' || trip.paymentMethod !== 'wompi') {
+      throw tripError('trip/cannot-switch', 'Este viaje ya no se puede cambiar a efectivo.');
+    }
+    if (trip.paymentStatus === 'approved') {
+      throw tripError('trip/already-approved', 'El pago con Wompi ya fue aprobado.');
+    }
+    transaction.update(tripRef, {
+      paymentMethod: 'cash',
+      paymentStatus: 'pending',
+      paymentMethodChangedAt: serverTimestamp(),
+    });
+  });
 }

@@ -42,10 +42,12 @@ function IncomingRequestHost() {
 function ActiveTripRedirect({ navigation }) {
   // AI-assisted: see docs/AI_LOG.md #13
   // currentTrip incluye el viaje completed con el resumen abierto: en ese caso va al resumen
-  const { currentTrip } = useTrip();
+  const { currentTrip, activeTrip } = useTrip();
   const lastKeyRef = useRef(null);
   const tripKey = currentTrip ? `${currentTrip.id}:${currentTrip.status}` : null;
-  const isCompleted = currentTrip?.status === 'completed';
+  // AI-assisted: see docs/AI_LOG.md #14
+  // si no hay viaje en curso, currentTrip es el del resumen (completed o ya paid)
+  const isCompleted = Boolean(currentTrip) && !activeTrip;
 
   useEffect(() => {
     if (tripKey === lastKeyRef.current) return;
