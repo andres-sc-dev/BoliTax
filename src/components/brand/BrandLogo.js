@@ -1,23 +1,22 @@
 // AI-assisted: see docs/AI_LOG.md #19
-// Logo de BoliTax. Por ahora es texto; cuando se haga el diseño se reemplaza por
-// <Image source={require('../../../assets/logo.png')} /> sin tocar la animación.
-import { StyleSheet, Text, View } from 'react-native';
-import { TAXI_YELLOW } from './brandColors';
+// AI-assisted: see docs/AI_LOG.md #20
+// Logo de BoliTax como imagen (PNG generado con `npm run brand:assets`; no se usa react-native-svg).
+// AI-assisted: see docs/AI_LOG.md #22
+// Marca final: cuadrado redondeado amarillo con la "B" de Montserrat ExtraBold en negro y la
+// franja de damero debajo. Es el mismo dibujo del ícono de la app y de la splash nativa.
+// Para fondos amarillos se usa el logotipo horizontal (Logotype, variant 'onYellow').
+import { Image } from 'react-native';
 
-export default function BrandLogo() {
+const SOURCE = require('../../../assets/brand/logo-icon.png');
+
+export default function BrandLogo({ size = 96, style }) {
   return (
-    <View style={styles.container} accessibilityRole="header" accessibilityLabel="BoliTax">
-      <Text style={styles.text}>
-        Boli<Text style={styles.accent}>Tax</Text>
-      </Text>
-      <Text style={styles.tagline}>Conductores</Text>
-    </View>
+    <Image
+      source={SOURCE}
+      style={[{ width: size, height: size }, style]}
+      resizeMode="contain"
+      accessibilityRole="image"
+      accessibilityLabel="Logo de BoliTax"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { alignItems: 'center' },
-  text: { fontSize: 46, fontWeight: '800', color: '#ffffff', letterSpacing: 1 },
-  accent: { color: TAXI_YELLOW },
-  tagline: { fontSize: 14, color: '#bbbbbb', letterSpacing: 4, marginTop: 2 },
-});

@@ -806,3 +806,142 @@ Herramientas usadas:
 - Archivos y commit: src/components/SplashAnimation.js, src/components/brand/BrandLogo.js, src/components/brand/TaxiIcon.js, src/components/brand/brandColors.js, App.js, app.json, package.json, package-lock.json, README.md — d3cc910
 - Verificacion: npm test (153 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Se regenero la carpeta android y se recompilo por expo-splash-screen. Probado en el emulador Pixel_7a: al abrir la app la splash pasa a la animacion sin destello blanco, el taxi entra, frena con un rebote debajo del logo y en unos 3 segundos aparece Login o Inicio. Se reviso el README con la vista previa de VSCode.
 - Aprendizaje: Aprendí a hacer animaciones solo con la API Animated de React Native, combinando un movimiento que desacelera con un rebote para que el taxi parezca que frena de verdad. También entendí cómo evitar el parpadeo blanco al abrir la app: la pantalla de carga nativa y la animación tienen que tener el mismo color, y la nativa se esconde solo cuando la animación ya está dibujada. Me gustó que la app vaya cargando la sesión mientras corre la animación, así no hay que esperar más. Y escribir el README me ayudó a ver todo el proyecto completo y a explicar por qué tomé cada decisión.
+
+---
+
+### Entrada #20
+- Fecha: 2026-11-10
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 9 (rediseño visual "Damero audaz"), Fase A: sistema de diseño, componentes base, marca nueva (logo "B" en SVG y PNG generados), splash animada centrada y pantallas de autenticacion (login y registro) con el nuevo estilo, sin cambiar la logica
+- Prompt:
+  ```
+  ## Objetivo
+  Rediseñar visualmente TODA la app BoliTax con el estilo "Damero audaz": modo oscuro con el amarillo taxi como protagonista y el damero de taxi como firma visual. NO cambiar la logica ni el comportamiento: solo apariencia, componentes visuales y assets de marca. Todos los tests deben seguir pasando.
+
+  ## Sistema de diseño "Damero audaz" (aplicalo de forma consistente)
+  - Paleta:
+    - Fondo #0B0B0F; superficies/tarjetas #16161D y #1F1F29; bordes #2A2A36.
+    - Principal: amarillo taxi #FFC72C. Texto e iconos sobre amarillo en #0B0B0F.
+    - Texto principal #F5F5F7, secundario #A1A1AA.
+    - Estados: exito/ganancias #22C55E, error/rechazado/vencido #EF4444, advertencia/pendiente #F59E0B, Wompi/info #3B82F6.
+  - Encabezados amarillos: las pantallas principales (login, registro, resumen del viaje, ganancias, perfil, historial y el drawer) llevan un encabezado/bloque superior en amarillo #FFC72C con el texto en negro, y justo debajo una franja de damero (CheckerStrip) bien visible. El contenido debajo va sobre el fondo oscuro.
+  - CheckerStrip: componente reutilizable con cuadritos negros #0B0B0F y amarillos #FFC72C (por ejemplo 8x8), en altura configurable. Es la firma de la marca.
+  - Tarjetas destacadas (solicitud entrante, saldo, viaje activo) con borde amarillo de 1.5px; las demas tarjetas sin borde, sobre #16161D.
+  - Tipografia moderna y gruesa para titulos y montos. Puedes usar una fuente de @expo-google-fonts (por ejemplo Montserrat o Poppins) SOLO si no requiere recompilar (expo-font ya esta en el proyecto); pregunta antes de instalar.
+  - Bordes redondeados (12-16), espaciado generoso, iconos simples. StatusBar adaptada (oscura sobre encabezados amarillos, clara sobre fondo oscuro).
+  - Centraliza todo en src/theme/ (colores, tipografia, espaciado, radios) y crea componentes base reutilizables en src/components/ui/ (Button primario amarillo / secundario / peligro, Card, Input con label y error, Chip, Badge de estado, YellowHeader con CheckerStrip). Las pantallas deben usar esos componentes en lugar de estilos sueltos.
+
+  ## Marca
+  - Logo: una B estilizada dentro de un cuadrado redondeado; la curva inferior de la B sugiere una rueda, con un pequeño detalle de damero. Dos versiones: B amarilla sobre cuadrado negro (para usar encima de fondos amarillos) y B negra sobre cuadrado amarillo (para fondos oscuros).
+  - Wordmark "BoliTAX": "Boli" en peso normal y "TAX" en mayuscula y grueso. Sobre amarillo va todo en negro; sobre oscuro, "Boli" en blanco y "TAX" en amarillo.
+  - Crea el logo como SVG en assets/brand/ y genera desde ahi, con un script de Node (dependencia solo de desarrollo, por ejemplo sharp o @resvg/resvg-js; pregunta primero), los PNG necesarios: icono de la app, icono adaptativo de Android (fondo amarillo y B negra), imagen de la splash e icono de notificacion (blanco con transparencia). En la app muestra el logo con <Image> usando esos PNG (no instales react-native-svg).
+  - Reemplaza BrandLogo y TaxiIcon de src/components/brand/ por la nueva marca. El taxi del splash debe verse moderno y coherente (amarillo con detalle de damero).
+
+  ## Trabajo por fases (3 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: sistema de diseño, marca, splash y autenticacion (entrada #20)
+  - src/theme/, componentes base, CheckerStrip, YellowHeader y assets de marca (SVG + PNG generados).
+  - Splash animado: logo y taxi CENTRADOS vertical y horizontalmente, alto contraste sobre el fondo oscuro, con una franja de damero. El taxi entra, frena con rebote debajo del logo y la composicion completa queda visible y quieta entre 1,5 y 2 segundos antes de pasar a la app. Fondo de la splash nativa igual al de la animacion.
+  - Login rediseñado resaltando el nombre: mitad superior amarilla con el logo grande y el wordmark BoliTAX en negro, CheckerStrip debajo, y el formulario sobre fondo oscuro con inputs y boton amarillo.
+  - Registro en 3 pestañas con el nuevo estilo (YellowHeader, tabs con el indicador amarillo, inputs, selectores, fotos, checkbox y boton enviar).
+
+  ### Fase B: inicio y flujo del viaje (entrada #21)
+  - Mapa en modo oscuro: cambia los tiles de LeafletMap a CARTO Dark Matter (gratuito, con la atribucion "© OpenStreetMap contributors © CARTO"). Ruta en amarillo, conductor destacado en amarillo, recogida y destino con colores claros.
+  - Inicio:
+    - Ovalo de ganancias estilo Uber arriba al centro, flotando sobre el mapa: fondo amarillo y texto negro, SOLO con la ganancia neta de hoy (por ejemplo "$45.200"), usando useEarnings. Al tocarlo abre Ganancias. Elimina la franja plegable de abajo.
+    - Tarjeta del interruptor Disponible/No disponible (interruptor amarillo), aviso de cuenta pendiente y boton "Ver viaje en curso".
+  - Modal de solicitud entrante: tarjeta con borde amarillo, temporizador circular o barra de progreso amarilla de 15 s, montos grandes, botones Aceptar (amarillo) y Rechazar.
+  - Viaje en curso: panel inferior tipo hoja con la informacion del pasajero, direccion, km/min y botones; modo demo con estilo discreto.
+  - Resumen del viaje y panel de cobro (Wompi y efectivo) con YellowHeader y CheckerStrip, montos grandes y estados de pago con Badge de color. Modal de Wompi con encabezado acorde.
+
+  ### Fase C: resto de pantallas, iconos nativos y cierre (entrada #22)
+  - Drawer personalizado: encabezado amarillo con logo, foto y nombre del conductor y estado de la cuenta, CheckerStrip, items con iconos y Cerrar sesion.
+  - Ganancias (tarjeta de saldo destacada), Historial (chips amarillos de filtros, items de la lista, estado vacio), Detalle del viaje y Perfil y configuracion con el nuevo estilo.
+  - app.json: icono de la app, icono adaptativo, splash (imagen y color) e icono y color de notificacion (expo-notifications) con los PNG generados. Indica que debo regenerar android/ y recompilar una sola vez al final.
+  - Revisa que no queden pantallas con el estilo viejo (fondos blancos, botones sin estilo) ni textos con poco contraste.
+  - En el README, actualiza la seccion de capturas indicando que pantallas capturar.
+
+  ## Reglas
+  - No cambies la logica, los servicios, los hooks ni las reglas de Firestore; solo UI y assets. Si un cambio visual requiere tocar logica, pregunta primero.
+  - Mantén las claves de traduccion existentes (translations.js) y agrega las nuevas que necesites en es y en.
+  - Todo Firebase solo desde src/services/firebase.js.
+  - Cuando dos cambios dependan entre si en un mismo archivo, hazlos en una sola edicion (para no romper Fast Refresh).
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+  - Responde en español.
+
+  ## Cierre
+  Muestrame primero el plan de las 3 fases, las dependencias que propones (fuente y generador de PNG) y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente presento el plan de las 3 fases y pregunto por la fuente, el generador de PNG y la libreria de iconos. En la Fase A creo el sistema de diseño (`src/theme/`), los componentes base (`src/components/ui/`: Button, Card, Input, Chip, Badge, CheckerStrip, YellowHeader y Screen), el script `npm run brand:assets` que genera los SVG y los PNG de la marca, la marca nueva (BrandLogo, Wordmark y TaxiIcon), la splash animada centrada, el login y el registro rediseñados, y paso los campos de formulario al tema sin cambiar su API.
+- Que se uso / modifico / descarto:
+  - Dependencias aprobadas: Montserrat (`@expo-google-fonts/montserrat`) y `expo-font` declarado (venia anidado dentro de expo, con su modulo nativo ya compilado), `@expo/vector-icons` (Ionicons) y `@resvg/resvg-js` como devDependency para el script. Ninguna requiere recompilar: las fuentes y los iconos se cargan en tiempo de ejecucion.
+  - Logo: el script define la geometria de la "B" una sola vez y escribe `assets/brand/logo-b-dark.svg` y `logo-b-light.svg`, y desde ellos los PNG (logos de 512 px, icono de 1024, icono adaptativo con la B en la zona segura y su version monocroma, imagen de la splash e icono de notificacion blanco de 96 px). La primera version dejaba una muesca y una ranura entre el tronco y la rueda; el agente reviso las imagenes generadas y la corrigio rellenando la mitad inferior y recortando el hueco de la rueda con una mascara, que tambien queda transparente en las versiones de una sola tinta.
+  - Los campos `FormField`, `SelectField`, `DateField`, `PhotoField` y `Checkbox` conservan su API y su logica; solo cambiaron sus estilos (FormField ahora es el `Input` del sistema de diseño). Asi el registro y el perfil cambian de aspecto sin tocar su codigo de validacion.
+  - Splash: logo, wordmark, taxi y una "calle" de damero centrados; la composicion queda quieta 1,7 s antes de desvanecerse; el respaldo paso de 6 a 8 s. La animacion espera a que carguen las fuentes (mientras tanto sigue la splash nativa, del mismo color) para que el wordmark no aparezca primero con la fuente del sistema. El fondo de la splash nativa paso a `#0B0B0F` en `app.json`; se aplica al recompilar en la Fase C.
+  - Navegacion con tema oscuro (paleta propia) para que no haya destellos blancos entre pantallas. La barra de estado la decide cada pantalla con el componente `Screen`, solo mientras tiene el foco, porque las pantallas del Stack y del Drawer siguen montadas al salir.
+  - Registro: se quito el encabezado del Stack y se uso un `YellowHeader` con boton para volver; las pestañas tienen iconos, barra oscura e indicador amarillo, y conservan el punto rojo de errores.
+  - Los textos del login y del registro siguen en español sin traducir (antes tampoco estaban en el diccionario).
+- Archivos y commit: src/theme/colors.js, src/theme/typography.js, src/theme/index.js, src/components/ui/(Badge, Button, Card, CheckerStrip, Chip, Input, Screen, YellowHeader, index).js, src/components/brand/(BrandLogo, Wordmark, TaxiIcon, brandColors).js, src/components/(SplashAnimation, FormField, SelectField, DateField, PhotoField, Checkbox).js, src/screens/auth/(LoginScreen, RegisterScreen).js, src/screens/register/(PersonalDataTab, VehicleTab, DocumentsTab).js, src/navigation/(AuthStack, RegisterTabs).js, App.js, app.json, package.json, package-lock.json, scripts/generateBrandAssets.js, assets/brand/*, assets/icon.png, assets/android-icon-foreground.png, assets/android-icon-monochrome.png, assets/splash-icon.png, assets/notification-icon.png — 6ca4253
+- Verificacion: npm test (153 tests en la app y 5 en backend), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: el login muestra la mitad superior amarilla con el logo y el damero, y el formulario oscuro con los campos y el boton amarillo; el registro en 3 pestañas tiene el encabezado amarillo, las pestañas con indicador amarillo y conserva todas sus validaciones. Hubo que desactivar las extensiones de Java de VSCode en el proyecto porque compilaban en paralelo y hacian fallar el empaquetado del APK.
+- Aprendizaje: Aprendí que un buen diseño empieza por un sistema: definir una sola vez los colores, las letras, los espacios y unos componentes base, y que todas las pantallas los usen, así la app se ve igual en todas partes y cambiar algo es fácil. También entendí que se puede cambiar toda la apariencia de un formulario sin tocar su lógica si los componentes conservan la misma forma de usarse. Y con el error de compilación aprendí que las extensiones de Java de VSCode pueden compilar en paralelo y bloquear archivos, por eso las desactivé solo en este proyecto.
+
+---
+
+### Entrada #21
+- Fecha: 2026-11-10
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 9 (rediseño visual "Damero audaz"), Fase B: mapa oscuro, Inicio con el ovalo de ganancias, solicitud entrante, viaje en curso, resumen del viaje, panel de cobro y modal de Wompi con el nuevo estilo, sin cambiar la logica
+- Prompt:
+  ```
+  Fase A probada: el login y el registro quedaron muy bien, mantén ese mismo nivel de diseño en el resto de la app. Continua con la Fase B. Recuerda: el ovalo de ganancias va arriba al centro del mapa, solo con la ganancia neta de hoy, y se elimina la franja de abajo. Responde en español.
+  ```
+  (Los requisitos de la Fase B son los del prompt de la entrada #20.)
+- Resumen de la respuesta: El agente oscurecio el mapa de `LeafletMap` (primero con tiles CARTO Dark Matter; ver la correccion abajo), dibujo la ruta en amarillo con un borde oscuro y paso los controles del mapa a la paleta oscura. En Inicio creo el ovalo `EarningsPill` (amarillo, solo la ganancia neta de hoy, abre Ganancias) y elimino `EarningsStrip`; abajo quedaron la tarjeta del viaje activo y la del interruptor Disponible. Rediseño el modal de solicitud entrante, la hoja inferior del viaje en curso, el resumen con `YellowHeader`, el panel de cobro con `Badge` y el modal de Wompi con encabezado amarillo.
+- Que se uso / modifico / descarto:
+  - Colores del mapa centralizados en `mapColors` (`src/theme/colors.js`): conductor amarillo (gris si esta No disponible), recogida blanca y destino celeste; los mismos colores se usan en los puntos del recorrido del modal y del resumen. `LeafletMap` acepta dos campos opcionales por marcador, `radius` y `halo` (aro translucido para destacar al conductor); la API anterior sigue igual, por eso el detalle del historial funciona sin cambios.
+  - Correccion (mismo dia, tras probar en el emulador): los tiles de CARTO Dark Matter mostraban "API KEY REQUIRED" porque CARTO ahora exige llave, y el proyecto no usa servicios con llave. Se volvio a los tiles de OpenStreetMap (con su User-Agent y la atribucion "© OpenStreetMap contributors") y el modo oscuro se logra con un filtro CSS aplicado SOLO a la capa de tiles (`.leaflet-tile-pane`): `invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.6)`. Invertir oscurece el fondo claro y girar el tono 180 grados devuelve los colores a su tono original (el agua sigue azulada); `saturate` baja los colores para que el amarillo resalte. Como los marcadores, la ruta, los tooltips y los controles estan en otras capas de Leaflet, el filtro no los cambia. Se quito la atribucion de CARTO.
+  - La atribucion del mapa se movio arriba a la derecha: abajo la tapaban las tarjetas de Inicio y la hoja del viaje, y es obligatoria. El ovalo baja un poco (24 px) para no chocar con ella. La atribucion va sin enlaces para no navegar dentro del WebView.
+  - El ovalo usa `useEarningsData()`, que entrega el resultado de `useEarnings` compartido por `EarningsContext`: no se crea otra suscripcion a Firestore ni se repiten calculos.
+  - Temporizador de la solicitud: aro amarillo con los segundos (rojo en los ultimos 5) y barra de progreso amarilla; se descarto un circulo de progreso real porque necesitaria `react-native-svg`, que no esta aprobado.
+  - Panel de cobro: el estado del pago es un `Badge` con `paymentStatusColors` del tema; el efecto en el saldo muestra el monto en grande y la misma frase debajo. `PAYMENT_STATUS_COLORS` de `tripLabels.js` se conserva porque lo usa el Historial (se rediseña en la Fase C).
+  - Los modales usan `statusBarTranslucent` y los margenes del area segura para no quedar debajo de la barra de navegacion de Android.
+  - Textos en español sin traducir, igual que antes en estas pantallas. No se agregaron dependencias.
+- Archivos y commit: src/theme/colors.js, src/theme/index.js, src/components/LeafletMap.js, src/components/EarningsPill.js (nuevo), src/components/EarningsStrip.js (eliminado), src/screens/HomeScreen.js, src/components/IncomingRequestModal.js, src/screens/TripInProgressScreen.js, src/screens/TripSummaryScreen.js, src/components/TripPaymentPanel.js, src/components/WompiCheckoutModal.js, docs/AI_LOG.md — 6ca4253
+- Verificacion: npm test (153 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: el mapa se ve en modo oscuro con el ovalo amarillo de ganancias de hoy arriba, y el flujo completo de solicitud, viaje en curso, resumen y cobro funciona con el nuevo estilo. Los tiles de CARTO pedian llave, asi que se volvio a OpenStreetMap con un filtro CSS solo sobre la capa del mapa para oscurecerlo.
+- Aprendizaje: Aprendí que no todos los servicios gratuitos siguen siéndolo: CARTO empezó a pedir llave para sus mapas oscuros, y la solución fue usar los mapas de OpenStreetMap con un filtro que invierte los colores solo en la capa del mapa, sin afectar los marcadores ni la ruta. También entendí que en una app como esta lo más importante debe estar siempre a la vista, como las ganancias del día arriba y el botón para conectarse, sin que se tapen entre sí.
+
+---
+
+### Entrada #22
+- Fecha: 2026-11-10
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 9 (rediseño visual "Damero audaz"), Fase C: marca final (logotipo horizontal e iconos), Drawer, Ganancias, Historial, Detalle y Perfil con el estilo del registro, boton principal Disponible, traduccion completa de las pantallas con sesion, `app.json` y README, sin cambiar la logica
+- Prompt (resumen de los mensajes de esta fase; los requisitos base estan en el prompt de la entrada #20):
+  ```
+  Fase B probada. Continua con la Fase C, con estos ajustes obligatorios:
+  1. Perfil, Ganancias, Historial y Detalle del viaje deben tener EXACTAMENTE el mismo estilo del formulario de registro (YellowHeader con titulo y subtitulo en negro y CheckerStrip, fondo #0B0B0F, inputs y tarjetas #16161D, chips con el activo en amarillo, Montserrat). La tarjeta de saldo en Ganancias va oscura con borde amarillo y el monto en verde o rojo.
+  2. Drawer: encabezado amarillo con el logo y el wordmark en negro, la foto y el nombre del conductor, el Badge del estado de la cuenta y CheckerStrip; items con iconos y el activo en amarillo.
+  3. Boton Disponible / No disponible: sombra suave, icono de encendido, Montserrat, animacion suave al cambiar de estado y el punto verde que late. Que se vea como el boton principal de la app.
+  4. Logo: logotipo HORIZONTAL "BoliTAX" en una linea. Genera primero 3 variantes de la B y espera mi eleccion.
+  (Plan aprobado: ocultar el encabezado del Drawer en Ganancias, Historial y Perfil con el boton de menu dentro del YellowHeader, y pasar al diccionario es/en los textos de Ganancias, Historial, Detalle y los de la Fase B.)
+  (Luego: "Descarta las 3 variantes... La B es la letra B de Montserrat ExtraBold, sin adornos. Debajo lleva una franja fina de damero (2 filas)... Generalo con generateBrandAssets.js... muestrame los PNG generados para confirmarlos." El integrante eligio el icono cuadrado y el logotipo sobre oscuro.)
+  (Recordatorio del integrante: no modificar nada de la logica ni la funcionalidad, solo el diseño.)
+  ```
+- Resumen de la respuesta: El agente presento el plan de la Fase C y espero la aprobacion. Genero 3 variantes de la B (descartadas por el integrante y borradas junto con su script) y despues la marca final con `generateBrandAssets.js`: la B y el texto se dibujan con los `.ttf` de Montserrat del proyecto y el ancho del damero se mide sobre la tinta real de las letras con `getBBox()` de resvg. Aplico la marca en el login, la splash animada, el Drawer y los iconos nativos; rediseño el Drawer, Ganancias, Historial, Detalle y Perfil; creo `AvailabilityButton` y paso al diccionario los textos de todas las pantallas con sesion iniciada.
+- Que se uso / modifico / descarto:
+  - Marca: `logo-icon` (cuadrado amarillo con la B negra y el damero), `logotype-on-dark` y `logotype-on-yellow` (fondo transparente), icono de la app, icono adaptativo (frente, fondo amarillo y monocromo), splash nativa e icono de notificacion (solo la B blanca). Componentes: `BrandLogo` (icono) y `Logotype` (reemplaza a `Wordmark`, que se elimino junto con los `logo-b-*`). En los encabezados amarillos se usa la version negra del logotipo, que es el mismo diseño elegido.
+  - Encabezados: Ganancias, Historial y Perfil ocultan el encabezado del Drawer y llevan `YellowHeader` con `safeTop` y un boton de menu (`HeaderIconButton`, que abre el Drawer con `DrawerActions.openDrawer()`); el Detalle lleva el boton para volver. Inicio conserva el encabezado oscuro del Drawer, con Montserrat y el icono de menu amarillo.
+  - Boton Disponible: mismo comportamiento que el Switch (llama a `setAvailable` con el nuevo valor y queda bloqueado si la cuenta no esta aprobada). Animaciones con `Animated`: los colores con el JS driver (los colores no se animan en el hilo nativo) y la escala y el latido con `useNativeDriver`, en vistas separadas para no mezclar drivers. Se marca con `accessibilityRole="switch"`.
+  - Traduccion: claves nuevas en es y en (`common.*`, `labels.*`, `map.*`, `home.*`, `request.*`, `trip.*`, `summary.*`, `payment.*`, `wompi.*`, `earnings.*`, `history.*`, `detail.*`). `tripLabels.js` paso de constantes a funciones que reciben `t` (`getCategoryLabel`, `getPaymentMethodLabel`, `getPaymentStatusLabel`), y la solicitud entrante dejo de tener su propia copia de las etiquetas. Los mensajes de error que llegan de los servicios y de los contextos (por ejemplo, los de ubicacion) no se tocaron porque son logica; el inicio de sesion y el registro siguen en español (aviso en Perfil).
+  - Perfil: el idioma se elige con chips en vez del selector; llaman a la misma funcion y, como el selector, tambien al tocar el idioma ya elegido.
+  - `app.json`: `userInterfaceStyle` oscuro, fondo del icono adaptativo amarillo e icono y color de la notificacion en `expo-notifications`. Se aplican al recompilar.
+  - Se corrigio el fondo blanco de la pantalla de carga de `RootNavigator`. Se elimino `PlaceholderScreen.js` (tenia el estilo viejo y ninguna pantalla lo usaba).
+  - Barra de estado del Drawer: mientras el menu esta abierto (`getDrawerStatusFromState(props.state) === 'open'`) el contenido del Drawer monta un `StatusBar` oscuro, porque va sobre el encabezado amarillo; al cerrarse se desmonta y vuelve el estilo de la pantalla visible.
+  - README: tabla de capturas a tomar y lineas de Funcionalidades actualizadas (mapa oscuro, ovalo, boton Disponible).
+- Archivos y commit: scripts/generateBrandAssets.js, assets/brand/(logo-icon, logotype-on-dark, logotype-on-yellow).(svg|png), assets/(icon, android-icon-foreground, android-icon-background, android-icon-monochrome, splash-icon, notification-icon).png, assets/brand/logo-b-* (eliminados), src/components/brand/(BrandLogo, Logotype).js, src/components/brand/Wordmark.js (eliminado), src/components/ui/(HeaderIconButton, index).js, src/components/(AvailabilityButton, SplashAnimation, EarningsPill, LeafletMap, IncomingRequestModal, TripPaymentPanel, WompiCheckoutModal).js, src/config/tripLabels.js, src/i18n/translations.js, src/navigation/(AppDrawer, RootNavigator).js, src/components/PlaceholderScreen.js (eliminado), src/screens/(HomeScreen, EarningsScreen, HistoryScreen, TripDetailScreen, ProfileScreen, TripInProgressScreen, TripSummaryScreen).js, src/screens/auth/LoginScreen.js, app.json, README.md, docs/AI_LOG.md — 62cca77
+- Verificacion: npm test (153 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Se desinstalo la app, se regenero la carpeta android y se recompilo. Probado en el emulador Pixel_7a: el logo final aparece en el login, el splash, el Drawer, el icono de la app y la notificacion; el Drawer, Ganancias, Historial, Detalle y Perfil tienen el mismo estilo del registro; el boton Disponible anima el cambio de estado y el punto verde late; al cambiar a English se traducen las pantallas con sesion iniciada.
+- Aprendizaje: Aprendí que un logo no necesita ser complicado para verse profesional: las primeras versiones de la B con rueda no se entendían, y al final quedó mejor una B limpia con la franja de damero, que conecta con el resto de la app. También entendí que el ícono de la app, la pantalla de carga y el ícono de las notificaciones son configuración nativa, por eso hay que regenerar la carpeta android y desinstalar la app para ver los cambios. Y me quedó claro que la animación del botón principal ayuda a que el conductor sepa de un vistazo si está trabajando.

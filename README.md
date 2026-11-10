@@ -14,30 +14,39 @@ El conductor:
 
 ## Capturas de pantalla
 
-> Pendiente: se agregan cuando esté listo el diseño visual.
+> Pendiente: tomar las capturas en el emulador (Pixel 7a) y guardarlas en `docs/screenshots/` con los nombres de la tabla.
+> Con el emulador abierto, desde Git Bash (en PowerShell 5.1 la redirección `>` daña los PNG): `adb exec-out screencap -p > docs/screenshots/<nombre>.png`.
 
-| Inicio | Solicitud entrante | Viaje en curso | Cobro y resumen |
-|---|---|---|---|
-| _(captura)_ | _(captura)_ | _(captura)_ | _(captura)_ |
-
-| Ganancias | Historial | Detalle del viaje | Perfil |
-|---|---|---|---|
-| _(captura)_ | _(captura)_ | _(captura)_ | _(captura)_ |
+| Pantalla | Archivo | Qué debe mostrar |
+|---|---|---|
+| Animación de inicio | `01-splash.png` | Ícono, logotipo BoliTAX y el taxi detenido sobre la franja de damero. |
+| Inicio de sesión | `02-login.png` | Mitad amarilla con el logotipo y el formulario oscuro. |
+| Registro | `03-register.png` | Pestaña "Datos personales" con un error de validación visible. |
+| Inicio | `04-home.png` | Mapa oscuro, óvalo de ganancias arriba y botón **Disponible** encendido (punto verde). |
+| Menú lateral | `05-drawer.png` | Encabezado amarillo con foto, nombre y estado de la cuenta; ítem activo en amarillo. |
+| Solicitud entrante | `06-request.png` | Modal con el contador de 15 s a mitad de camino y los montos. |
+| Viaje en curso | `07-trip.png` | Ruta amarilla en el mapa y la hoja inferior con km/min y "Pasajero a bordo". |
+| Cobro y resumen | `08-summary.png` | Encabezado con la ganancia neta y el panel de cobro con el estado "Pendiente". |
+| Pago con Wompi | `09-wompi.png` | Checkout de Wompi Sandbox con el encabezado amarillo. |
+| Ganancias | `10-earnings.png` | Tarjeta de saldo con borde amarillo y el periodo "Semana" elegido. |
+| Historial | `11-history.png` | Chips de filtro y varios viajes con su estado de pago. |
+| Detalle del viaje | `12-detail.png` | Mapa con la ruta guardada, montos y calificación. |
+| Perfil | `13-profile.png` | Estado de la cuenta y documentos con su vigencia (en inglés, para mostrar el cambio de idioma). |
 
 ---
 
 ## Funcionalidades
 
-- **Animación de inicio:** el taxi entra y frena bajo el logo de BoliTax. Es un extra propio, sin parpadeo entre la splash nativa y la animación.
+- **Animación de inicio:** el taxi entra y frena bajo el logotipo de BoliTax. Es un extra propio, sin parpadeo entre la splash nativa y la animación.
 - **Registro en 3 pestañas:** datos personales, vehículo, y documentos y pagos.
   - Validaciones en cada campo y errores debajo del campo, nunca en un Alert.
   - Fotos con cámara o galería, subidas a Cloudinary.
   - La cuenta queda **pendiente de aprobación**.
 - **Inicio:**
-  - Mapa de OpenStreetMap con la ubicación actual.
-  - Interruptor **Disponible / No disponible**, que solo se puede activar si la cuenta está aprobada.
+  - Mapa de OpenStreetMap en modo oscuro (filtro CSS sobre los tiles) con la ubicación actual.
+  - Botón principal **Disponible / No disponible**, que solo se puede activar si la cuenta está aprobada.
   - Envío de la ubicación a Firestore como máximo una vez cada 5 s.
-  - Franja plegable con las ganancias de hoy.
+  - Óvalo con la ganancia neta de hoy; al tocarlo abre Ganancias.
 - **Solicitudes de viaje en tiempo real:**
   - Modal con origen, destino, distancia, duración, categoría, método de pago, tarifa y ganancia neta.
   - Temporizador de 15 s; si llega a cero, la solicitud se rechaza sola.
@@ -217,7 +226,7 @@ bolitax/
 ├── assets/                 # íconos, splash y sonido de nuevas solicitudes
 ├── src/
 │   ├── components/         # mapa (LeafletMap), modal de solicitud, panel de cobro, campos de formulario…
-│   │   └── brand/          # logo y taxi de la animación (fáciles de cambiar por imágenes)
+│   │   └── brand/          # logo, logotipo y taxi de la animación (PNG de `npm run brand:assets`)
 │   ├── config/             # tarifas (pricing.js), opciones del registro y etiquetas
 │   ├── context/            # sesión, disponibilidad, viaje activo, ganancias, idioma y registro
 │   ├── hooks/              # useDriverLocation, useTripRequests, useEarnings, useTripHistory…

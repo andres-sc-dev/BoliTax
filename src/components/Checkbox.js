@@ -1,6 +1,9 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Checkbox propio hecho con Pressable; el texto puede incluir otros componentes.
+// AI-assisted: see docs/AI_LOG.md #20 — estilo "Damero audaz" (misma API y lógica)
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing, typography } from '../theme';
 
 export default function Checkbox({ checked, onChange, children, error }) {
   return (
@@ -12,7 +15,7 @@ export default function Checkbox({ checked, onChange, children, error }) {
         accessibilityState={{ checked }}
       >
         <View style={[styles.box, checked && styles.boxChecked, error && styles.boxError]}>
-          {checked ? <Text style={styles.check}>✓</Text> : null}
+          {checked ? <Ionicons name="checkmark" size={18} color={colors.onPrimary} /> : null}
         </View>
         <Text style={styles.label}>{children}</Text>
       </Pressable>
@@ -22,22 +25,21 @@ export default function Checkbox({ checked, onChange, children, error }) {
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 14 },
+  container: { marginBottom: spacing.lg },
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   box: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     borderWidth: 2,
-    borderColor: '#555',
-    borderRadius: 4,
+    borderColor: colors.textMuted,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: spacing.md,
     marginTop: 1,
   },
-  boxChecked: { backgroundColor: '#111', borderColor: '#111' },
-  boxError: { borderColor: '#c62828' },
-  check: { color: '#fff', fontWeight: '700' },
-  label: { flex: 1, fontSize: 15, color: '#222' },
-  error: { color: '#c62828', fontSize: 13, marginTop: 4 },
+  boxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  boxError: { borderColor: colors.danger },
+  label: { ...typography.body, flex: 1, color: colors.text },
+  error: { ...typography.caption, color: colors.danger, marginTop: 6 },
 });

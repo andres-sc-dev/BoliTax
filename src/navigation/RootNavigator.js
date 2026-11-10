@@ -4,6 +4,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import AppDrawer from './AppDrawer';
 import AuthStack from './AuthStack';
+// AI-assisted: see docs/AI_LOG.md #22 — fondo oscuro mientras se restaura la sesión
+import { colors } from '../theme';
 
 export default function RootNavigator() {
   const { user, initializing, registering } = useAuth();
@@ -12,7 +14,7 @@ export default function RootNavigator() {
   if (initializing) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -23,5 +25,5 @@ export default function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 });

@@ -2,35 +2,45 @@
 // Historial de carreras (sección 6 del PDF): FlatList del viaje más reciente al más antiguo,
 // filtros Hoy / Semana / Mes / Rango de fechas y por método de pago, 20 viajes por carga y
 // mensaje vacío si no hay viajes. Al tocar un viaje se abre su detalle.
+// AI-assisted: see docs/AI_LOG.md #22
+// Rediseño "Damero audaz" (mismo estilo del registro): encabezado amarillo con el botón de
+// menú, chips de filtro con el activo en amarillo, viajes en tarjetas oscuras con el estado
+// del pago en un Badge y estado vacío con ícono. Textos traducidos. La lógica no cambió.
+import { Ionicons } from '@expo/vector-icons';
+import { DrawerActions } from '@react-navigation/native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateField from '../components/DateField';
-import {
-  CATEGORY_LABELS,
-  PAYMENT_STATUS_COLORS,
-  PAYMENT_STATUS_LABELS,
-} from '../config/tripLabels';
+import { Badge, Chip, HeaderIconButton, Screen, YellowHeader } from '../components/ui';
+import { getCategoryLabel, getPaymentStatusLabel } from '../config/tripLabels';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useTripHistory } from '../hooks/useTripHistory';
+import { colors, mapColors, paymentStatusColors, radius, spacing, typography } from '../theme';
 import { getTripDateMs } from '../utils/earnings';
 import { formatCOP } from '../utils/formatCurrency';
 import { formatTripDateTime, getHistoryRange } from '../utils/historyFilters';
 
+// AI-assisted: see docs/AI_LOG.md #22 — las etiquetas salen del diccionario (history.*)
 const PERIOD_FILTERS = [
-  { key: 'today', label: 'Hoy' },
-  { key: 'week', label: 'Semana' },
-  { key: 'month', label: 'Mes' },
-  { key: 'range', label: 'Rango' },
+  { key: 'today', labelKey: 'history.period.today' },
+  { key: 'week', labelKey: 'history.period.week' },
+  { key: 'month', labelKey: 'history.period.month' },
+  { key: 'range', labelKey: 'history.period.range' },
 ];
 
 const METHOD_FILTERS = [
-  { key: null, label: 'Todos' },
-  { key: 'wompi', label: 'Wompi' },
-  { key: 'cash', label: 'Efectivo' },
+  { key: null, labelKey: 'history.method.all' },
+  { key: 'wompi', labelKey: 'history.method.wompi' },
+  { key: 'cash', labelKey: 'history.method.cash' },
 ];
 
 export default function HistoryScreen({ navigation }) {
   const { user } = useAuth();
+  // AI-assisted: see docs/AI_LOG.md #22
+  const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState('week');
   const [paymentMethod, setPaymentMethod] = useState(null);
   // rango de fechas personalizado: por defecto, los últimos 7 días
@@ -63,22 +73,38 @@ export default function HistoryScreen({ navigation }) {
     return unsubscribe;
   }, [navigation, refresh]);
 
+  // AI-assisted: see docs/AI_LOG.md #22 — mismos casos de antes, con textos traducidos
   const emptyMessage = !range
-    ? 'La fecha "desde" debe ser anterior o igual a la fecha "hasta".'
-    : error ?? 'No tienes viajes en este periodo con el filtro elegido.';
+    ? t('history.invalidRange')
+    : error
+      ? t('history.loadError')
+      : t('history.empty');
 
   return (
-    <View style={styles.container}>
+    <Screen statusBar="dark">
+      <YellowHeader
+        safeTop
+        title={t('history.title')}
+        subtitle={t('history.subtitle')}
+        left={
+          <HeaderIconButton
+            icon="menu"
+            label={t('common.openMenu')}
+            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+          />
+        }
+      />
+
       <View style={styles.filters}>
-        <ChipRow options={PERIOD_FILTERS} value={period} onChange={setPeriod} />
-        <ChipRow options={METHOD_FILTERS} value={paymentMethod} onChange={setPaymentMethod} />
+        <ChipRow t={t} options={PERIOD_FILTERS} value={period} onChange={setPeriod} />
+        <ChipRow t={t} options={METHOD_FILTERS} value={paymentMethod} onChange={setPaymentMethod} />
         {period === 'range' ? (
           <View style={styles.dateRow}>
-            <View style={styles.dateField}>
-              <DateField label="Desde" value={fromDate} onChange={setFromDate} maximumDate={new Date()} />
+            <View style={[styles.dateField, styles.dateFieldLeft]}>
+              <DateField label={t('history.from')} value={fromDate} onChange={setFromDate} maximumDate={new Date()} />
             </View>
             <View style={styles.dateField}>
-              <DateField label="Hasta" value={toDate} onChange={setToDate} maximumDate={new Date()} />
+              <DateField label={t('history.to')} value={toDate} onChange={setToDate} maximumDate={new Date()} />
             </View>
           </View>
         ) : null}
@@ -88,104 +114,160 @@ export default function HistoryScreen({ navigation }) {
         data={trips}
         keyExtractor={(trip) => trip.id}
         renderItem={({ item }) => (
-          <TripRow trip={item} onPress={() => navigation.navigate('TripDetail', { tripId: item.id })} />
+          <TripRow t={t} trip={item} onPress={() => navigation.navigate('TripDetail', { tripId: item.id })} />
         )}
-        contentContainerStyle={trips.length === 0 ? styles.emptyContainer : styles.listContent}
+        contentContainerStyle={[
+          trips.length === 0 ? styles.emptyContainer : styles.listContent,
+          { paddingBottom: insets.bottom + spacing.xl },
+        ]}
         // paginación: al acercarse al final se carga la siguiente página de 20
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
         refreshing={loading && trips.length > 0}
         onRefresh={refresh}
+        // AI-assisted: see docs/AI_LOG.md #22 — indicador amarillo al deslizar para recargar
+        progressBackgroundColor={colors.surface}
+        colors={[colors.primary]}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color={colors.primary} />
           ) : (
-            <Text style={[styles.empty, error && styles.error]}>{emptyMessage}</Text>
+            <View style={styles.empty}>
+              <View style={styles.emptyIcon}>
+                <Ionicons
+                  name={error || !range ? 'alert-circle-outline' : 'car-outline'}
+                  size={36}
+                  color={error || !range ? colors.danger : colors.primary}
+                />
+              </View>
+              <Text style={[styles.emptyText, (error || !range) && styles.error]}>{emptyMessage}</Text>
+            </View>
           )
         }
         ListFooterComponent={
           loadingMore ? (
-            <ActivityIndicator style={styles.footer} />
+            <ActivityIndicator style={styles.footer} color={colors.primary} />
           ) : !hasMore && trips.length > 0 ? (
-            <Text style={styles.footerText}>No hay más viajes en este periodo.</Text>
+            <Text style={styles.footerText}>{t('history.noMore')}</Text>
           ) : null
         }
       />
-    </View>
+    </Screen>
   );
 }
 
-function ChipRow({ options, value, onChange }) {
+function ChipRow({ t, options, value, onChange }) {
   return (
     <View style={styles.chipRow}>
       {options.map((option) => (
-        <Pressable
+        <Chip
           key={String(option.key)}
-          style={[styles.chip, value === option.key && styles.chipActive]}
+          label={t(option.labelKey)}
+          active={value === option.key}
           onPress={() => onChange(option.key)}
-        >
-          <Text style={[styles.chipText, value === option.key && styles.chipTextActive]}>
-            {option.label}
-          </Text>
-        </Pressable>
+        />
       ))}
     </View>
   );
 }
 
 // un viaje del historial: fecha y hora, origen -> destino, categoría, tarifa, ganancia y pago
-function TripRow({ trip, onPress }) {
+function TripRow({ t, trip, onPress }) {
   const paymentStatus = trip.paymentStatus ?? 'pending';
   return (
-    <Pressable style={styles.item} onPress={onPress}>
+    <Pressable style={({ pressed }) => [styles.item, pressed && styles.itemPressed]} onPress={onPress}>
       <View style={styles.itemHeader}>
         <Text style={styles.itemDate}>{formatTripDateTime(getTripDateMs(trip))}</Text>
-        <Text style={[styles.itemStatus, { color: PAYMENT_STATUS_COLORS[paymentStatus] ?? '#222' }]}>
-          {PAYMENT_STATUS_LABELS[paymentStatus] ?? paymentStatus}
+        <Badge
+          label={getPaymentStatusLabel(t, paymentStatus)}
+          color={paymentStatusColors[paymentStatus] ?? colors.textMuted}
+        />
+      </View>
+
+      {/* recorrido con los colores del mapa */}
+      <View style={styles.routeLine}>
+        <View style={[styles.dot, { backgroundColor: mapColors.pickup }]} />
+        <Text style={styles.address} numberOfLines={1}>
+          {trip.origin?.address}
         </Text>
       </View>
-      <Text style={styles.itemRoute} numberOfLines={2}>
-        {trip.origin?.address} → {trip.destination?.address}
-      </Text>
+      <View style={styles.routeLine}>
+        <View style={[styles.dot, { backgroundColor: mapColors.destination }]} />
+        <Text style={styles.address} numberOfLines={1}>
+          {trip.destination?.address}
+        </Text>
+      </View>
+
       <View style={styles.itemFooter}>
-        <Text style={styles.itemCategory}>{CATEGORY_LABELS[trip.category] ?? trip.category}</Text>
-        <Text style={styles.itemFare}>Tarifa {formatCOP(trip.fare)}</Text>
-        <Text style={styles.itemEarnings}>Ganancia {formatCOP(trip.driverEarnings)}</Text>
+        <Text style={styles.itemCategory}>{getCategoryLabel(t, trip.category)}</Text>
+        <Text style={styles.itemFare}>
+          {t('history.fare')} {formatCOP(trip.fare)}
+        </Text>
+        <Text style={styles.itemEarnings}>
+          <Text style={styles.itemEarningsLabel}>{t('history.earnings')} </Text>
+          {formatCOP(trip.driverEarnings)}
+        </Text>
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  filters: { paddingHorizontal: 12, paddingTop: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    marginRight: 8,
-    marginBottom: 4,
+  filters: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  chipActive: { backgroundColor: '#111' },
-  chipText: { fontWeight: '600', color: '#444' },
-  chipTextActive: { color: '#fff' },
-  dateRow: { flexDirection: 'row' },
-  dateField: { flex: 1, marginRight: 8 },
-  listContent: { padding: 12 },
-  emptyContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  empty: { color: '#666', textAlign: 'center', fontSize: 15 },
-  error: { color: '#c62828' },
-  footer: { marginVertical: 16 },
-  footerText: { textAlign: 'center', color: '#999', marginVertical: 16 },
-  item: { backgroundColor: '#f7f7f7', borderRadius: 12, padding: 12, marginBottom: 10 },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  itemDate: { fontWeight: '700', color: '#222' },
-  itemStatus: { fontWeight: '700' },
-  itemRoute: { color: '#333', marginTop: 6 },
-  itemFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  itemCategory: { color: '#666' },
-  itemFare: { color: '#222' },
-  itemEarnings: { color: '#2e7d32', fontWeight: '700' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  dateRow: { flexDirection: 'row', marginTop: spacing.xs },
+  dateField: { flex: 1 },
+  dateFieldLeft: { marginRight: spacing.sm },
+  listContent: { padding: spacing.lg },
+  emptyContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  empty: { alignItems: 'center' },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
+  error: { color: colors.danger },
+  footer: { marginVertical: spacing.lg },
+  footerText: { ...typography.caption, textAlign: 'center', color: colors.textMuted, marginVertical: spacing.lg },
+  item: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  itemPressed: { backgroundColor: colors.surfaceAlt },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  itemDate: { ...typography.bodyStrong, color: colors.text },
+  routeLine: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
+  dot: { width: 8, height: 8, borderRadius: 4, marginRight: spacing.sm },
+  address: { ...typography.body, color: colors.text, flex: 1 },
+  itemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  itemCategory: { ...typography.label, color: colors.textMuted },
+  itemFare: { ...typography.label, color: colors.text },
+  itemEarnings: { ...typography.amount, fontSize: 18, color: colors.success },
+  itemEarningsLabel: { ...typography.label, color: colors.success },
 });

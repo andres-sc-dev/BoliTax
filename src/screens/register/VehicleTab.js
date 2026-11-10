@@ -1,6 +1,8 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Pestaña 2 del registro: datos del vehículo.
 import { ScrollView, StyleSheet } from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #20 — fondo oscuro del sistema de diseño
+import { colors, spacing } from '../../theme';
 import FormField from '../../components/FormField';
 import PhotoField from '../../components/PhotoField';
 import SelectField from '../../components/SelectField';
@@ -74,5 +76,5 @@ export default function VehicleTab({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff' },
+  container: { padding: spacing.xl, paddingBottom: spacing.xxl, backgroundColor: colors.background },
 });

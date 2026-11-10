@@ -1,6 +1,8 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Pestaña 1 del registro: datos personales y credenciales de acceso.
 import { ScrollView, StyleSheet } from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #20 — fondo oscuro del sistema de diseño
+import { colors, spacing } from '../../theme';
 import DateField from '../../components/DateField';
 import FormField from '../../components/FormField';
 import PhotoField from '../../components/PhotoField';
@@ -111,5 +113,5 @@ export default function PersonalDataTab({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#fff' },
+  container: { padding: spacing.xl, paddingBottom: spacing.xxl, backgroundColor: colors.background },
 });

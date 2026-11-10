@@ -4,29 +4,28 @@
 // - Wompi: el backend crea el cobro y lo verifica con Wompi (nunca se confía en la redirección).
 // - Efectivo, cambio de Wompi a efectivo y efecto en el saldo.
 // El estado del pago se ve en tiempo real porque `trip` llega por onSnapshot desde quien lo usa.
+// AI-assisted: see docs/AI_LOG.md #21
+// Rediseño "Damero audaz": tarjeta oscura, estado del pago con Badge de color, efecto en el
+// saldo en grande y botones del sistema de diseño (Wompi en azul). La lógica no cambió.
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import {
-  PAYMENT_METHOD_LABELS,
-  PAYMENT_STATUS_COLORS,
-  PAYMENT_STATUS_LABELS,
-} from '../config/tripLabels';
+import { StyleSheet, Text, View } from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #22 — textos y etiquetas traducidos
+import { getPaymentMethodLabel, getPaymentStatusLabel } from '../config/tripLabels';
+import { useLanguage } from '../context/LanguageContext';
 import { createWompiCheckout, verifyWompiPayment } from '../services/paymentsApi';
 import { markCashPaid, switchToCash } from '../services/trips';
+import { colors, paymentStatusColors, radius, spacing, typography } from '../theme';
 import { getBalanceImpact } from '../utils/driverBalance';
 import { formatCOP } from '../utils/formatCurrency';
+import { Badge, Button, Card } from './ui';
 import WompiCheckoutModal from './WompiCheckoutModal';
 
 // textos de las confirmaciones dentro de la pantalla (no Alert)
+// AI-assisted: see docs/AI_LOG.md #22 — ahora son claves del diccionario
 const CONFIRMATIONS = {
-  cash: {
-    message: '¿Confirmas que recibiste el pago completo en efectivo?',
-    confirmLabel: 'Sí, lo recibí',
-  },
-  switch: {
-    message: '¿El pasajero pagará en efectivo? El cobro con Wompi se cancelará para este viaje.',
-    confirmLabel: 'Sí, cobrar en efectivo',
-  },
+  cash: { message: 'payment.confirmCash', confirmLabel: 'payment.confirmCashButton' },
+  switch: { message: 'payment.confirmSwitch', confirmLabel: 'payment.confirmSwitchButton' },
 };
 
 export default function TripPaymentPanel({ trip }) {
@@ -40,6 +39,7 @@ export default function TripPaymentPanel({ trip }) {
   const [confirming, setConfirming] = useState(null);
   // evita dos verificaciones al mismo tiempo (por ejemplo, redirección + botón)
   const verifyInFlightRef = useRef(false);
+  const { t } = useLanguage();
 
   const paymentStatus = trip.paymentStatus ?? 'pending';
   const isPaid = trip.status === 'paid';
@@ -61,7 +61,7 @@ export default function TripPaymentPanel({ trip }) {
     try {
       return await action();
     } catch (actionError) {
-      setPaymentError(actionError.message ?? 'No se pudo completar la acción.');
+      setPaymentError(actionError.message ?? t('common.actionError'));
       return null;
     } finally {
       setPaymentBusy(null);
@@ -97,7 +97,7 @@ export default function TripPaymentPanel({ trip }) {
   // se cerró el WebView sin terminar: queda "Verificar pago" (busca por la referencia)
   const handleCheckoutClosed = () => {
     setCheckout(null);
-    setPaymentMessage('Si alcanzaste a pagar, toca "Verificar pago".');
+    setPaymentMessage(t('payment.checkoutClosed'));
   };
 
   // confirmación aceptada: efectivo recibido o cambio a efectivo
@@ -127,115 +127,127 @@ export default function TripPaymentPanel({ trip }) {
   const balanceImpact = isPaid
     ? getBalanceImpact(trip)
     : getBalanceImpact({ ...trip, status: 'paid', paymentStatus: isCash ? 'cash' : 'approved' });
-  const balanceText =
-    balanceImpact >= 0
-      ? `+${formatCOP(balanceImpact)} a tu saldo`
-      : `${formatCOP(balanceImpact)} de comisión descontada de tu saldo`;
+  // AI-assisted: see docs/AI_LOG.md #21
+  // el monto va aparte (grande) y la frase debajo; el contenido es el mismo de antes
+  const balanceAmount = balanceImpact >= 0 ? `+${formatCOP(balanceImpact)}` : formatCOP(balanceImpact);
+  const balanceCaption =
+    balanceImpact >= 0 ? t('payment.toBalance') : t('payment.commissionDeducted');
 
   const busy = paymentBusy !== null;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <Text style={styles.rowLabel}>Método de pago</Text>
-        <Text style={styles.rowValue}>
-          {PAYMENT_METHOD_LABELS[trip.paymentMethod] ?? trip.paymentMethod}
-        </Text>
+    <Card>
+      {/* AI-assisted: see docs/AI_LOG.md #21 — encabezado de la tarjeta con el estado del pago */}
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>{t('payment.title')}</Text>
+        {/* estado en tiempo real: cambia solo cuando se actualiza el viaje en Firestore */}
+        <Badge
+          label={getPaymentStatusLabel(t, paymentStatus)}
+          color={paymentStatusColors[paymentStatus] ?? colors.textMuted}
+        />
       </View>
-      {/* estado en tiempo real: cambia solo cuando se actualiza el viaje en Firestore */}
+
       <View style={styles.row}>
-        <Text style={styles.rowLabel}>Estado del pago</Text>
-        <Text style={[styles.status, { color: PAYMENT_STATUS_COLORS[paymentStatus] ?? '#222' }]}>
-          {PAYMENT_STATUS_LABELS[paymentStatus] ?? paymentStatus}
+        <View style={styles.methodLabel}>
+          <Ionicons
+            name={isCash ? 'cash-outline' : 'card-outline'}
+            size={18}
+            color={colors.textMuted}
+          />
+          <Text style={styles.rowLabel}>{t('payment.method')}</Text>
+        </View>
+        <Text style={styles.rowValue}>
+          {getPaymentMethodLabel(t, trip.paymentMethod)}
         </Text>
       </View>
 
-      <Text style={[styles.balance, balanceImpact < 0 && styles.balanceNegative]}>
-        {isPaid ? balanceText : `Al cobrarse: ${balanceText}`}
-      </Text>
-      {isCash ? (
-        <Text style={styles.note}>
-          En efectivo recibes el dinero directamente; la comisión se descuenta de tu saldo.
+      {/* efecto en el saldo */}
+      <View style={styles.balanceBox}>
+        <Text style={styles.balanceCaption}>
+          {isPaid ? t('payment.balanceEffect') : t('payment.whenCharged')}
         </Text>
+        <Text style={[styles.balanceAmount, balanceImpact < 0 && styles.balanceNegative]}>
+          {balanceAmount}
+        </Text>
+        <Text style={styles.balanceCaption}>{balanceCaption}</Text>
+      </View>
+      {isCash ? (
+        <Text style={styles.note}>{t('payment.cashNote')}</Text>
       ) : null}
 
       {isPaid ? (
-        <Text style={styles.approved}>
-          {isWompi ? 'Pago aprobado por Wompi.' : 'Cobro en efectivo registrado.'}
-        </Text>
+        <View style={[styles.notice, styles.noticeSuccess]}>
+          <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+          <Text style={[styles.noticeText, { color: colors.success }]}>
+            {isWompi ? t('payment.approvedWompi') : t('payment.cashRegistered')}
+          </Text>
+        </View>
       ) : null}
       {paymentStatus === 'rejected' && !isPaid ? (
-        <Text style={styles.rejected}>
-          El pago fue rechazado. Puedes reintentar con Wompi o cobrar en efectivo.
-        </Text>
+        <View style={[styles.notice, styles.noticeDanger]}>
+          <Ionicons name="close-circle" size={20} color={colors.danger} />
+          <Text style={styles.noticeText}>{t('payment.rejected')}</Text>
+        </View>
       ) : null}
 
       {confirming ? (
         // confirmación dentro de la pantalla, no en un Alert
         <View style={styles.confirmBox}>
-          <Text style={styles.confirmText}>{CONFIRMATIONS[confirming].message}</Text>
-          <Pressable
-            style={[styles.button, styles.confirmButton]}
+          <Text style={styles.confirmText}>{t(CONFIRMATIONS[confirming].message)}</Text>
+          <Button
+            title={t(CONFIRMATIONS[confirming].confirmLabel)}
+            variant="success"
             onPress={handleConfirm}
+            loading={paymentBusy === confirming}
             disabled={busy}
-          >
-            {paymentBusy === confirming ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>{CONFIRMATIONS[confirming].confirmLabel}</Text>
-            )}
-          </Pressable>
-          <Pressable style={styles.linkButton} onPress={() => setConfirming(null)} disabled={busy}>
-            <Text style={styles.link}>Cancelar</Text>
-          </Pressable>
+          />
+          <Button
+            title={t('common.cancel')}
+            variant="ghost"
+            compact
+            onPress={() => setConfirming(null)}
+            disabled={busy}
+          />
         </View>
       ) : (
         <View>
           {canChargeWompi ? (
-            <Pressable
-              style={[styles.button, styles.wompiButton]}
+            <Button
+              title={paymentStatus === 'rejected' ? t('payment.retryWompi') : t('payment.chargeWompi')}
+              variant="info"
+              icon="card"
               onPress={handleCharge}
+              loading={paymentBusy === 'checkout'}
               disabled={busy}
-            >
-              {paymentBusy === 'checkout' ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>
-                  {paymentStatus === 'rejected' ? 'Reintentar cobro con Wompi' : 'Cobrar con Wompi'}
-                </Text>
-              )}
-            </Pressable>
+            />
           ) : null}
           {canVerify ? (
-            <Pressable
-              style={[styles.button, styles.outlineButton]}
+            <Button
+              title={t('payment.verify')}
+              variant="secondary"
+              icon="refresh"
               onPress={() => handleVerify()}
+              loading={paymentBusy === 'verify'}
               disabled={busy}
-            >
-              {paymentBusy === 'verify' ? (
-                <ActivityIndicator color="#1565c0" />
-              ) : (
-                <Text style={styles.outlineText}>Verificar pago</Text>
-              )}
-            </Pressable>
+            />
           ) : null}
           {canSwitchToCash ? (
-            <Pressable
-              style={[styles.button, styles.outlineCashButton]}
+            <Button
+              title={t('payment.chargeCash')}
+              variant="secondary"
+              icon="cash-outline"
               onPress={() => setConfirming('switch')}
               disabled={busy}
-            >
-              <Text style={styles.outlineCashText}>Cobrar en efectivo</Text>
-            </Pressable>
+            />
           ) : null}
           {canMarkCash ? (
-            <Pressable
-              style={[styles.button, styles.cashButton]}
+            <Button
+              title={t('payment.cashReceived')}
+              variant="success"
+              icon="cash"
               onPress={() => setConfirming('cash')}
               disabled={busy}
-            >
-              <Text style={styles.buttonText}>Cobro recibido en efectivo</Text>
-            </Pressable>
+            />
           ) : null}
         </View>
       )}
@@ -252,34 +264,56 @@ export default function TripPaymentPanel({ trip }) {
           onClose={handleCheckoutClosed}
         />
       ) : null}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#f5f5f5', borderRadius: 12, padding: 14, marginTop: 16 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 5 },
-  rowLabel: { fontSize: 15, color: '#444', flexShrink: 1, marginRight: 8 },
-  rowValue: { fontSize: 16, color: '#222' },
-  status: { fontSize: 16, fontWeight: '700' },
-  balance: { fontSize: 15, fontWeight: '700', color: '#2e7d32', marginTop: 6 },
-  balanceNegative: { color: '#c62828' },
-  note: { fontSize: 13, color: '#777', marginTop: 8 },
-  approved: { color: '#2e7d32', fontWeight: '600', marginTop: 8 },
-  rejected: { color: '#c62828', marginTop: 8 },
-  confirmBox: { backgroundColor: '#fff4e5', borderRadius: 10, padding: 12, marginTop: 10 },
-  confirmText: { color: '#5c3b00', fontWeight: '600' },
-  error: { color: '#c62828', textAlign: 'center', marginTop: 12 },
-  // sin flex: 1 (los botones están en una columna; ver corrección de la entrada #12)
-  button: { borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
-  wompiButton: { backgroundColor: '#1565c0' },
-  cashButton: { backgroundColor: '#2e7d32' },
-  confirmButton: { backgroundColor: '#8a5300' },
-  outlineButton: { borderWidth: 2, borderColor: '#1565c0' },
-  outlineText: { color: '#1565c0', fontWeight: '700', fontSize: 16 },
-  outlineCashButton: { borderWidth: 2, borderColor: '#2e7d32' },
-  outlineCashText: { color: '#2e7d32', fontWeight: '700', fontSize: 16 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  linkButton: { marginTop: 12, padding: 8, alignItems: 'center' },
-  link: { color: '#1565c0', fontWeight: '600' },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  title: { ...typography.subtitle, color: colors.text },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 6,
+  },
+  methodLabel: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: spacing.sm },
+  rowLabel: { ...typography.body, color: colors.textMuted, marginLeft: spacing.sm },
+  rowValue: { ...typography.bodyStrong, color: colors.text },
+  balanceBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+  },
+  balanceCaption: { ...typography.caption, color: colors.textMuted },
+  balanceAmount: { ...typography.amountLarge, color: colors.success, marginVertical: 2 },
+  balanceNegative: { color: colors.danger },
+  note: { ...typography.caption, color: colors.textMuted, marginTop: spacing.sm },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  noticeSuccess: { backgroundColor: colors.successSoft, borderColor: colors.success },
+  noticeDanger: { backgroundColor: colors.dangerSoft, borderColor: colors.danger },
+  noticeText: { ...typography.bodyStrong, color: colors.text, flex: 1, marginLeft: spacing.sm },
+  confirmBox: {
+    backgroundColor: colors.warningSoft,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  confirmText: { ...typography.bodyStrong, color: colors.text },
+  error: { ...typography.body, color: colors.danger, textAlign: 'center', marginTop: spacing.md },
 });

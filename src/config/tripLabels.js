@@ -1,22 +1,24 @@
 // AI-assisted: see docs/AI_LOG.md #17
 // Textos visibles de los campos del viaje (los valores en Firestore están en inglés).
-// Los usan el panel de cobro, el historial y el detalle.
+// Los usan la solicitud entrante, el panel de cobro, el historial y el detalle.
+// AI-assisted: see docs/AI_LOG.md #22
+// Ahora salen del diccionario (es / en): cada función recibe `t` de useLanguage().
+// Si llega un valor desconocido se muestra tal cual. Los colores de los estados de pago
+// están en src/theme (paymentStatusColors).
 
-export const CATEGORY_LABELS = { economy: 'Económico', xl: 'XL', premium: 'Premium' };
-
-export const PAYMENT_METHOD_LABELS = { wompi: 'Wompi (tarjeta)', cash: 'Efectivo' };
-
-// estados de pago que nombra la sección 3 del PDF
-export const PAYMENT_STATUS_LABELS = {
-  pending: 'Pendiente',
-  approved: 'Aprobado',
-  rejected: 'Rechazado',
-  cash: 'Efectivo',
+const labelFor = (prefix) => (t, value) => {
+  if (!value) return '—';
+  const key = `${prefix}.${value}`;
+  const text = t(key);
+  // translate devuelve la clave si no existe: entonces se muestra el valor original
+  return text === key ? value : text;
 };
 
-export const PAYMENT_STATUS_COLORS = {
-  pending: '#8a5300',
-  approved: '#2e7d32',
-  rejected: '#c62828',
-  cash: '#2e7d32',
-};
+// categoría del vehículo: economy | xl | premium
+export const getCategoryLabel = labelFor('labels.category');
+
+// método de pago: wompi | cash
+export const getPaymentMethodLabel = labelFor('labels.method');
+
+// estados de pago que nombra la sección 3 del PDF: pending | approved | rejected | cash
+export const getPaymentStatusLabel = labelFor('labels.status');

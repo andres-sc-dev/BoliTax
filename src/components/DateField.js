@@ -1,9 +1,12 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Selector de fecha. En Android abre el diálogo nativo con DateTimePickerAndroid.open;
 // en iOS muestra el selector en línea debajo del campo.
+// AI-assisted: see docs/AI_LOG.md #20 — estilo "Damero audaz" (misma API y lógica)
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing, typography } from '../theme';
 
 // formato dd/mm/aaaa
 function formatDate(date) {
@@ -46,12 +49,14 @@ export default function DateField({
         <Text style={value ? styles.value : styles.placeholder}>
           {value ? formatDate(value) : 'dd/mm/aaaa'}
         </Text>
+        <Ionicons name="calendar-outline" size={18} color={colors.primary} />
       </Pressable>
       {Platform.OS === 'ios' && showIos ? (
         <DateTimePicker
           value={pickerValue}
           mode="date"
           display="inline"
+          themeVariant="dark"
           minimumDate={minimumDate}
           maximumDate={maximumDate}
           onValueChange={(_event, date) => onChange(date)}
@@ -63,18 +68,21 @@ export default function DateField({
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 14 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 4, color: '#222' },
+  container: { marginBottom: spacing.lg },
+  label: { ...typography.label, color: colors.textMuted, marginBottom: 6 },
   field: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    minHeight: 50,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
   },
-  fieldError: { borderColor: '#c62828' },
-  value: { fontSize: 16, color: '#111' },
-  placeholder: { fontSize: 16, color: '#999' },
-  error: { color: '#c62828', fontSize: 13, marginTop: 4 },
+  fieldError: { borderColor: colors.danger },
+  value: { ...typography.body, color: colors.text, fontSize: 16 },
+  placeholder: { ...typography.body, color: colors.textMuted, fontSize: 16 },
+  error: { ...typography.caption, color: colors.danger, marginTop: 6 },
 });
