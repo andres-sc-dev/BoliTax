@@ -8,6 +8,7 @@ import {
 } from '@react-navigation/drawer';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { EarningsProvider } from '../context/EarningsContext';
 import { usePushToken } from '../hooks/usePushToken';
 import EarningsScreen from '../screens/EarningsScreen';
 import HistoryScreen from '../screens/HistoryScreen';
@@ -45,16 +46,20 @@ export default function AppDrawer() {
   usePushToken({ uid: driver ? user?.uid : null, savedToken: driver?.fcmToken });
 
   return (
-    <Drawer.Navigator drawerContent={(props) => <DrawerContent {...props} />}>
-      <Drawer.Screen name="Home" component={HomeStack} options={{ title: 'Inicio' }} />
-      <Drawer.Screen name="History" component={HistoryScreen} options={{ title: 'Historial' }} />
-      <Drawer.Screen name="Earnings" component={EarningsScreen} options={{ title: 'Ganancias' }} />
-      <Drawer.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Perfil y configuración' }}
-      />
-    </Drawer.Navigator>
+    // AI-assisted: see docs/AI_LOG.md #16
+    // useEarnings se ejecuta una sola vez aquí y lo comparten Ganancias e Inicio
+    <EarningsProvider>
+      <Drawer.Navigator drawerContent={(props) => <DrawerContent {...props} />}>
+        <Drawer.Screen name="Home" component={HomeStack} options={{ title: 'Inicio' }} />
+        <Drawer.Screen name="History" component={HistoryScreen} options={{ title: 'Historial' }} />
+        <Drawer.Screen name="Earnings" component={EarningsScreen} options={{ title: 'Ganancias' }} />
+        <Drawer.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: 'Perfil y configuración' }}
+        />
+      </Drawer.Navigator>
+    </EarningsProvider>
   );
 }
 

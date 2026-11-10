@@ -641,3 +641,61 @@ Herramientas usadas:
 - Archivos y commit: backend/src/firebaseAdmin.js, backend/src/server.js, backend/src/routes/payments.js, backend/package.json, backend/scripts/simulatePassenger.js, src/services/paymentsApi.js, src/services/trips.js, src/utils/driverBalance.js, src/utils/__tests__/driverBalance.test.js, src/screens/TripSummaryScreen.js — 19811fd
 - Verificacion: npm test (116 tests en la app y 5 en backend), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: con un viaje en efectivo, Cobro recibido en efectivo deja el viaje en paid con paymentStatus cash y muestra la comision descontada del saldo. Un viaje de Wompi permite cambiar a efectivo antes de aprobarse. Con el pago aprobado ya no aparece el mensaje de error de conexion. Fue necesario recargar Metro para que la app tomara los cambios.
 - Aprendizaje: Entendí cómo funciona el saldo del conductor: cuando el pasajero paga con tarjeta, la plataforma recibe la plata y le debe la ganancia al conductor, pero cuando paga en efectivo el conductor ya tiene el dinero y lo que queda es que le debe la comisión a la plataforma, por eso el saldo puede quedar negativo. También aprendí que el conductor no puede quedar bloqueado si la pasarela falla, entonces puede salir sin cobrar y el pago queda pendiente. Y con el error que salía junto al pago aprobado aprendí que el modo watch del backend lo reinicia cuando cambia un archivo, y si eso pasa en plena petición la app cree que no hay conexión.
+
+---
+
+### Entrada #16
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 7, Fase A: pantalla de Ganancias con totales por periodo y saldo, hook `useEarnings` y franja plegable de ganancias en Inicio (secciones 3 y 5 del documento)
+- Prompt:
+  ```
+  ## Objetivo
+  Implementar las pantallas de Ganancias e Historial de carreras, y una franja plegable de ganancias en Inicio. Referencia: seccion 3 (pantallas Ganancias e Historial, hooks useEarnings y useMemo), seccion 5 (totales y saldo) y seccion 6 (historial, filtros, detalle, paginacion y modelo de datos) de docs/requisitos-bolitax.pdf.
+
+  ## Contexto
+  - calculateDriverBalance y getBalanceImpact ya existen en src/utils/driverBalance.js (modulo 6). Reutilizalos.
+  - formatCOP en src/utils/formatCurrency.js y LeafletMap en src/components/LeafletMap.js (marcadores y polilinea).
+  - Los viajes guardan route (coordenadas simplificadas), fare, commission, tip, driverEarnings, commissionRate, paymentMethod (wompi o cash), paymentStatus, status, createdAt y completedAt.
+  - Las pantallas Historial y Ganancias ya existen como placeholders en el Drawer.
+  - Zona horaria de Colombia; la semana empieza el lunes.
+
+  ## Trabajo por fases (2 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: ganancias (entrada #16)
+  - Hook personalizado useEarnings (lo exige el PDF): escucha con onSnapshot los viajes completados o pagados del conductor (con limpieza) y calcula con useMemo, para hoy, la semana y el mes: numero de viajes, total facturado, total de comisiones, propinas, ganancia neta y promedio por viaje. Tambien expone el saldo con calculateDriverBalance.
+  - Funciones puras de agregacion por periodo con tests en Jest (rangos de fechas de hoy/semana/mes y los totales).
+  - Pantalla Ganancias: selector Hoy / Semana / Mes con las tarjetas de totales, y el saldo del conductor destacado (verde si es positivo, rojo si es negativo) con una nota que explique como se calcula.
+  - Franja plegable en Inicio, encima del mapa: muestra la ganancia neta de hoy y el numero de viajes; al tocarla se expande con el saldo y el promedio por viaje; al tocar de nuevo se pliega. Debe usar useEarnings (no duplicar calculos) y no estorbar el interruptor de Disponible ni la franja de cuenta pendiente.
+
+  ### Fase B: historial y detalle (entrada #17)
+  - Pantalla Historial con FlatList ordenada del viaje mas reciente al mas antiguo.
+  - Filtros de periodo: Hoy, Semana, Mes y Rango de fechas (con el DateField existente). Filtro por metodo de pago: Todos, Wompi, Efectivo.
+  - Cada elemento muestra: fecha y hora, origen -> destino, categoria, tarifa, ganancia neta y estado del pago.
+  - Paginacion: carga 20 viajes por vez y carga mas al llegar al final (limit + startAfter). Si Firestore pide un indice compuesto, crea firestore.indexes.json con el indice necesario y dime como crearlo en la consola.
+  - Si no hay viajes en el filtro elegido, mensaje vacio claro en lugar de una lista en blanco.
+  - Al tocar un viaje se abre el Detalle: mapa con la ruta guardada dibujada con la polilinea (sin volver a pedir la ruta a OSRM), origen y destino, duracion, distancia, tarifa, comision, propina, ganancia neta, metodo y estado del pago, y calificacion del pasajero.
+  - Calificacion del pasajero: como no hay app de pasajero, simula una calificacion de 1 a 5 (mayormente 4 y 5) que se guarda en el campo rating al marcarse el viaje como pagado. Explica donde la asignas.
+  - Si un viaje quedo completado con pago pendiente, el detalle permite cobrarlo (reutiliza el flujo de cobro del resumen).
+
+  ## Reglas
+  - Todo Firebase solo desde src/services/firebase.js.
+  - Sin dependencias nuevas salvo que sean indispensables (pregunta primero).
+  - Estilos simples y ordenados; el diseño final va despues.
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+
+  ## Cierre
+  Muestrame primero el plan de las 2 fases y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente presento el plan de las 2 fases. En la Fase A creo las funciones puras de ganancias (`getPeriodRange`, `getTripDateMs`, `summarizeTrips`) con tests, el hook `useEarnings` (onSnapshot con limpieza y useMemo), un `EarningsProvider` que ejecuta el hook una sola vez, la pantalla Ganancias con selector Hoy / Semana / Mes y el saldo destacado, y la franja plegable `EarningsStrip` en Inicio.
+- Que se uso / modifico / descarto:
+  - Zona horaria: los rangos se calculan en hora de Colombia (UTC−5, sin horario de verano) desplazando el reloj −5 h y usando los getters UTC, asi no dependen de la zona horaria del telefono. Se comprobo corriendo los tests con `TZ=UTC`, `TZ=Asia/Tokyo` y `TZ=America/Los_Angeles`. La semana empieza el lunes a las 00:00.
+  - Que cuenta en los totales: los viajes realizados (`completed` o `paid`), aunque el pago siga pendiente, porque el viaje se hizo y su tarifa esta facturada; la fecha del viaje es `completedAt` (o `createdAt` si falta). El saldo, en cambio, solo cuenta viajes `paid`, con `calculateDriverBalance` (Wompi aprobado suma la ganancia neta; efectivo resta la comision). `net` es la suma de `driverEarnings` (ya incluye la propina) y el promedio es `net / viajes`, redondeado; sin viajes queda en 0.
+  - Para no duplicar suscripciones ni calculos, `useEarnings` se llama una sola vez en un `EarningsProvider` dentro de `AppDrawer`; la pantalla Ganancias y la franja de Inicio leen lo mismo con `useEarningsData()`. El objeto que devuelve el hook se memoriza para no re-renderizar de mas a quienes lo leen.
+  - La consulta usa solo `==` e `in` (`driverId` y `status`), asi que no necesita indice compuesto.
+  - La franja va abajo, en un contenedor junto al panel "Ver viaje en curso", para no tapar la tarjeta superior del interruptor y del aviso de cuenta pendiente.
+- Archivos y commit: src/utils/earnings.js, src/utils/__tests__/earnings.test.js, src/hooks/useEarnings.js, src/context/EarningsContext.js, src/navigation/AppDrawer.js, src/screens/EarningsScreen.js, src/components/EarningsStrip.js, src/screens/HomeScreen.js — [PENDIENTE]
+- Verificacion: `npm test` (125 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: prueba en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]
