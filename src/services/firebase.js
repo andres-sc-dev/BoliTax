@@ -32,3 +32,7 @@ export { setDoc } from '@react-native-firebase/firestore';
 // AI-assisted: see docs/AI_LOG.md #8
 // actualización parcial del documento del conductor (ubicación y disponibilidad)
 export { updateDoc } from '@react-native-firebase/firestore';
+
+// AI-assisted: see docs/AI_LOG.md #10
+// consultas y transacciones sobre la colección trips (solicitudes y viaje activo)
+export { query, where, runTransaction } from '@react-native-firebase/firestore';

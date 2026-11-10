@@ -379,3 +379,66 @@ Herramientas usadas:
 - Archivos y commit: src/utils/routeParsers.js, src/utils/__tests__/routeParsers.test.js, src/services/routing.js, src/screens/HomeScreen.js, src/hooks/useDriverLocation.js (sin logs DIAG), docs/AI_LOG.md (ajuste de la Entrada #8) — 6d059ff
 - Verificacion: npm test (75 tests, 7 suites), npx expo export --platform android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: el boton TEMPORAL "Probar ruta" dibuja la linea entre el Parque Berrio y el Parque Lleras, ajusta el zoom para mostrar la ruta completa y muestra la distancia, la duracion y la direccion de origen. "Quitar ruta" borra la linea.
 - Aprendizaje: Aprendí que para calcular rutas, distancias y tiempos no necesito pagar Google, porque OSRM y Nominatim hacen lo mismo gratis, pero hay que respetar sus reglas, como mandar máximo una petición por segundo a Nominatim e identificar la app. También entendí que las respuestas de una API casi nunca vienen como uno las necesita: OSRM manda las coordenadas al revés (primero longitud y luego latitud) y Nominatim devuelve la ciudad con un nombre largo, entonces es mejor tener funciones que limpien esos datos y probarlas con tests sin depender de internet. Y aprendí que toda llamada a internet necesita un tiempo límite y mensajes de error claros, para que la app no se quede colgada si algo falla.
+
+---
+
+### Entrada #10
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 4, Fase A: backend (Node + Express + firebase-admin), simulador de pasajeros que crea viajes en `trips`, y recepcion de solicitudes en la app con temporizador de 15 s, aceptar y rechazar (secciones 3, 6 y 7 del documento)
+- Prompt:
+  ```
+  ## Objetivo
+  Crear el backend, un simulador de pasajeros y la recepcion de solicitudes de viaje en la app del conductor, con temporizador de 15 segundos, notificacion push y sonido. Referencia: seccion 3 (solicitud entrante, estados del viaje, hook useTripRequests), seccion 6 (modelo de datos trips) y seccion 7 (FCM, Firestore en tiempo real) de docs/requisitos-bolitax.pdf.
+
+  ## Contexto
+  - Rutas y distancias: src/services/routing.js (OSRM) ya existe. El backend puede reutilizar la logica o llamar a OSRM directamente.
+  - Tarifas: calculateFare de src/utils/calculateFare.js. Debe ser la MISMA funcion en app y backend; resuelve como compartirla sin duplicar codigo.
+  - Llave de servicio de Firebase: backend/serviceAccountKey.json. NO la leas; solo referenciala por su ruta.
+  - Sonido: assets/sounds/new_request.wav.
+  - El seguimiento de ubicacion y la disponibilidad viven en AvailabilityContext dentro de HomeStack. Las pantallas nuevas de este modulo van dentro de HomeStack.
+
+  ## Trabajo por fases (2 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: backend, simulador y solicitud entrante (entrada #10)
+  - Instala en esta fase TODAS las dependencias nativas del modulo completo (sonido y canal de notificaciones incluidos) para recompilar una sola vez.
+  - backend/ con su propio package.json: Node + Express + firebase-admin. backend/.env.example con nombres de variables. Script "npm run dev" y endpoint GET /health.
+  - backend/scripts/simulatePassenger.js (script "npm run simulate"): busca un conductor con isAvailable true y status "approved", genera origen y destino aleatorios dentro de Medellin cerca del conductor, calcula distancia y duracion con OSRM, calcula la tarifa con calculateFare y crea un documento en trips con status "requested" y todos los campos de la seccion 6 del PDF (driverId, passengerId simulado, passengerName, origin y destination con lat/lng/address, distanceKm, durationMin, category, paymentMethod, fare, commission, tip 0, driverEarnings, commissionRate, paymentStatus "pending", createdAt). Argumentos opcionales para categoria y metodo de pago (mercadopago o cash).
+  - App: TripContext con useContext para el viaje activo (lo exige el PDF).
+  - Hook useTripRequests: con onSnapshot escucha trips donde driverId == uid y status == "requested", con limpieza en useEffect. Solo escucha si el conductor esta Disponible.
+  - Pantalla o modal de solicitud entrante con: nombre del pasajero, origen, destino, distancia, duracion, categoria, metodo de pago, tarifa estimada y ganancia neta estimada. Temporizador visible de 15 segundos con limpieza en useEffect; al llegar a 0 se rechaza sola.
+  - Aceptar y Rechazar con useCallback. Aceptar: status "accepted" y luego "driver_arriving", guarda acceptedAt y navega a una pantalla placeholder "Viaje en curso" (se implementa en el modulo 5). Rechazar o vencer: status "rejected".
+  - Mientras haya un viaje activo, no mostrar nuevas solicitudes.
+  - Quita el boton TEMPORAL "Probar ruta" de HomeScreen.
+
+  ### Fase B: notificacion push y sonido (entrada #11)
+  - La app pide permiso de notificaciones (Android 13+), obtiene el token FCM y lo guarda en drivers/{uid}.fcmToken; si cambia, lo actualiza.
+  - Canal de notificaciones de Android con el sonido new_request.wav.
+  - El simulador, al crear el viaje, envia una notificacion FCM al token del conductor usando ese canal.
+  - App abierta: suena new_request.wav al llegar la solicitud. App en segundo plano o cerrada: llega la notificacion con ese sonido y al tocarla abre la app en la solicitud.
+
+  ## Reglas
+  - Todo Firebase en la app solo desde src/services/firebase.js.
+  - Dependencias con npx expo install en la app; en backend/ con npm install.
+  - Secretos solo en backend y nunca en Git.
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+
+  ## Cierre
+  Muestrame primero el plan de las 2 fases, las dependencias y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente presento el plan de las 2 fases. En la Fase A creo el backend (Express con `GET /health`, `firebaseAdmin.js` que solo pasa la ruta de la llave al SDK, y el simulador `npm run simulate`), el servicio `trips.js` (aceptar con transaccion, rechazar), el hook `useTripRequests`, `TripContext` (viaje activo y solicitud pendiente), el modal de solicitud entrante con temporizador de 15 s, el placeholder "Viaje en curso" y funciones puras con tests (`formatCOP`, `pickNextRequest`, `isRequestStale`, `secondsLeft`). Quito el boton TEMPORAL "Probar ruta".
+- Que se uso / modifico / descarto:
+  - `calculateFare` compartida sin duplicar: el backend es ESM (`"type": "module"`) e importa directamente `src/utils/calculateFare.js`, `src/config/pricing.js` y `src/utils/routeParsers.js`. El unico cambio en la app fue poner la extension `.js` al import de `pricing` en `calculateFare.js` (Node ESM la exige; Metro y Jest la aceptan). Se comprobo desde Node que el ejemplo XL de la seccion 5 da 26.900 / 5.380 / 21.520. Node 24 detecta solo que esos archivos son ESM; el aviso se oculta con `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`.
+  - El backend usa `--env-file` de Node en lugar de instalar `dotenv`. `backend/.env` se creo copiando `backend/.env.example` (solo PORT y la ruta de la llave, sin secretos).
+  - Sonido: el archivo entregado es `assets/sounds/new_request.mp3` (un MP3 real), no `.wav`. Se decidio usar el `.mp3`, que Android acepta para notificaciones y expo-audio reproduce.
+  - Dependencias de la app instaladas en esta fase para recompilar una sola vez: `expo-notifications` (canal con sonido y permiso de Android 13+; plugin con `sounds` y `defaultChannel: "trip_requests"`), `expo-audio` (sonido con la app abierta; plugin con microfono desactivado) y, con aprobacion, `expo-asset`, que `expo-doctor` pidio como dependencia directa de expo-audio. Backend: `express` y `firebase-admin`.
+  - Aceptar usa una transaccion de Firestore que verifica que el viaje siga en `requested`, para no aceptar una solicitud que ya vencio. Luego pasa a `driver_arriving`.
+  - Rechazar guarda `rejectReason` (`driver` o `timeout`) y `rejectedAt`. Las solicitudes con mas de 2 minutos (por ejemplo, de cuando la app estuvo cerrada) se rechazan solas por `timeout` y no se muestran.
+  - El temporizador cuenta 15 s desde que aparece la solicitud en pantalla (no desde `createdAt`), para no depender del reloj del emulador. El modal se monta con `key={request.id}`, asi cada solicitud tiene su propio temporizador.
+  - El modal vive en `HomeStack`, fuera del Stack, para mostrarse sobre cualquier pantalla de la seccion Inicio. Las consultas usan solo filtros de igualdad (`==` e `in`) y ordenan en el cliente, para no requerir indices compuestos.
+  - El simulador busca el conductor Disponible y aprobado con la ubicacion mas reciente; por defecto usa la categoria del vehiculo del conductor y un metodo de pago aleatorio.
+- Archivos y commit: backend/package.json, backend/package-lock.json, backend/.env.example, backend/src/server.js, backend/src/firebaseAdmin.js, backend/src/geo.js, backend/scripts/simulatePassenger.js, src/utils/calculateFare.js, src/services/firebase.js, src/services/trips.js, src/hooks/useTripRequests.js, src/context/TripContext.js, src/components/IncomingRequestModal.js, src/screens/TripInProgressScreen.js, src/screens/HomeScreen.js, src/navigation/HomeStack.js, src/utils/tripRequest.js, src/utils/formatCurrency.js, src/utils/__tests__/tripRequest.test.js, app.json, package.json, package-lock.json — [PENDIENTE]
+- Verificacion: `npm test` (84 tests, 8 suites), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores; `GET /health` responde `{"status":"ok"}`. [PENDIENTE: simulador y solicitud en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]

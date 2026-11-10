@@ -56,3 +56,8 @@ serviceAccountKey.json
 
 # firebase config (contiene llaves del proyecto)
 google-services.json
+
+# firebase config (contiene llaves del proyecto)
+backend/serviceAccountKey.json
+backend/.env
+backend/node_modules/
