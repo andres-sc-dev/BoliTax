@@ -786,3 +786,23 @@ Herramientas usadas:
 - Archivos y commit: src/i18n/translations.js, src/i18n/__tests__/translations.test.js, src/context/LanguageContext.js, src/services/driverProfile.js, src/utils/documentStatus.js, src/utils/__tests__/documentStatus.test.js, src/utils/profileForm.js, src/utils/__tests__/profileForm.test.js, src/screens/ProfileScreen.js, src/navigation/AppDrawer.js, App.js, firestore.rules — [PENDIENTE]
 - Verificacion: `npm test` (153 tests), script de referencias no declaradas (97 archivos, 0), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: reglas publicadas, flujo completo y simulador de reglas en la consola; prueba en el emulador Pixel_7a]
 - Aprendizaje: [PENDIENTE]
+
+---
+
+### Entrada #19
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 8, Fase B: animacion de inicio con el taxi integrada con la splash nativa, y README final del proyecto (secciones 8 y 9 del documento)
+- Prompt: "Fase A probada: reglas publicadas en la consola y el flujo completo funciona (viaje, cobro en efectivo, historial y perfil) sin errores de permisos. Continua con la Fase B. Responde en español." (el detalle de la Fase B esta en el prompt de la Entrada #18)
+- Resumen de la respuesta: El agente instalo `expo-splash-screen` (aprobado en el plan), configuro su plugin con el mismo color de fondo de la animacion, creo los componentes de marca `BrandLogo` y `TaxiIcon`, la animacion `SplashAnimation` con la API `Animated` y su integracion en `App.js`, y escribio el `README.md` completo en español.
+- Que se uso / modifico / descarto:
+  - Splash sin parpadeo: la splash nativa se configura con fondo `#111111`, el mismo de la animacion (`SPLASH_BACKGROUND` en `brandColors.js`). `SplashScreen.preventAutoHideAsync()` se llama fuera de los componentes, como pide la documentacion, y `SplashScreen.hide()` se llama en el `onLayout` de la animacion, cuando ya esta dibujada con el mismo fondo. Hay un respaldo de 6 s por si la animacion no termina.
+  - La animacion se monta encima de la app, que ya esta montada debajo, asi la sesion carga mientras el taxi avanza y al terminar aparece Login o Inicio sin espera extra.
+  - Animacion (Animated, con useNativeDriver): aparece el logo (opacidad y escala con spring); el taxi entra desde la izquierda con `Easing.out(Easing.cubic)` y se pasa 14 puntos del centro; al frenar vuelve con un `spring` (rebote) mientras se inclina hacia adelante; despues una pausa y la capa se desvanece. Dura unos 2,5-3 s. Si el telefono tiene activado "reducir movimiento", se omite el recorrido. La limpieza del `useEffect` detiene la animacion si la pantalla se desmonta.
+  - `BrandLogo` (texto) y `TaxiIcon` (taxi hecho con Views: letrero, cabina, ventanas, franja de cuadros, farola y ruedas) estan aislados en `src/components/brand/`, para cambiarlos por imagenes en el diseño sin tocar la animacion.
+  - `App.js` se escribio de una sola vez (imports y uso juntos), para no repetir el problema de Fast Refresh de las Entradas #17 y #18.
+  - README: descripcion, funcionalidades, stack y decisiones con su justificacion (OpenStreetMap/Leaflet/OSRM/Nominatim, Wompi, `@react-native-firebase`, una sola fuente de verdad entre app y backend), requisitos previos con la nota de rutas largas en Windows, instalacion y ejecucion (app, backend y simulador con sus argumentos), variables de entorno de la app y del backend con enlaces a los `.env.example`, archivos que hay que agregar, configuracion de Firebase (incluidas reglas e indices), Cloudinary y Wompi Sandbox con las tarjetas de prueba, estructura de carpetas, pruebas, modo demo, seccion "Uso de IA" con enlace a esta bitacora y espacio para capturas. Se comprobo que existen todos los archivos que enlaza.
+- Archivos y commit: src/components/SplashAnimation.js, src/components/brand/BrandLogo.js, src/components/brand/TaxiIcon.js, src/components/brand/brandColors.js, App.js, app.json, package.json, package-lock.json, README.md — [PENDIENTE]
+- Verificacion: `npm test` (153 tests), script de referencias no declaradas (101 archivos, 0), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores. [PENDIENTE: recompilar y ver la animacion en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]
