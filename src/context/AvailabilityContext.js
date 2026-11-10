@@ -32,9 +32,17 @@ export function AvailabilityProvider({ sectionFocused, children }) {
     };
   }, [uid]);
 
+  // AI-assisted: see docs/AI_LOG.md #12
+  // modo demo (solo __DEV__): ubicación simulada que reemplaza temporalmente al GPS
+  const [simulatedLocation, setSimulatedLocation] = useState(null);
+
   // el seguimiento solo corre si está Disponible y en la sección Inicio
   const { permissionStatus, canAskAgain, location, error, trackingError, retry } =
-    useDriverLocation({ uid, active: isAvailable && sectionFocused });
+    useDriverLocation({
+      uid,
+      active: isAvailable && sectionFocused,
+      overrideLocation: simulatedLocation,
+    });
 
   const setAvailable = useCallback(
     (value) => {
@@ -56,8 +64,11 @@ export function AvailabilityProvider({ sectionFocused, children }) {
       isAvailable,
       isApproved,
       setAvailable,
+      isSimulating: simulatedLocation !== null,
+      setSimulatedLocation,
     }),
     [
+      simulatedLocation,
       permissionStatus,
       canAskAgain,
       location,

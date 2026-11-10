@@ -42,8 +42,10 @@ const WATCH_OPTIONS = {
 };
 
 // AI-assisted: see docs/AI_LOG.md #7
-// uid y active se usan en la Fase B: mientras active sea true, se envía la ubicación a Firestore
-export function useDriverLocation({ uid = null, active = false } = {}) {
+// uid y active se usan en la Fase B: mientras active sea true, se envía la ubicación a Firestore.
+// overrideLocation (modo demo, entrada #12): si no es null reemplaza al GPS en el mapa y en
+// Firestore, respetando el mismo límite de escrituras; al volver a null vuelve el GPS real.
+export function useDriverLocation({ uid = null, active = false, overrideLocation = null } = {}) {
   // 'checking' | 'granted' | 'denied'
   const [permissionStatus, setPermissionStatus] = useState('checking');
   // false cuando Android ya no deja volver a mostrar el diálogo (hay que ir a ajustes)
@@ -101,35 +103,58 @@ export function useDriverLocation({ uid = null, active = false } = {}) {
     locationRef.current = location;
   }, [location]);
 
-  // seguimiento en tiempo real: solo mientras el conductor está Disponible en la sección Inicio
+  // AI-assisted: see docs/AI_LOG.md #12
+  // ubicación simulada en una ref, para que el watcher del GPS sepa si debe enviar o no
+  const overrideRef = useRef(overrideLocation);
   useEffect(() => {
-    if (!active || !uid || permissionStatus !== 'granted') return undefined;
+    overrideRef.current = overrideLocation;
+  }, [overrideLocation]);
 
-    let subscription = null;
-    let cancelled = false;
-    let lastSentAt = null;
+  // última escritura en una ref compartida por el GPS y la simulación: así ambos respetan
+  // el mismo límite de una escritura cada 5 s
+  const lastSentAtRef = useRef(null);
+  const trackingActive = Boolean(active && uid && permissionStatus === 'granted');
 
-    // envía la ubicación respetando el límite de una escritura cada 5 s
-    const sendLocation = (latLng) => {
+  // envía la ubicación respetando el límite de escrituras
+  const sendLocation = useCallback(
+    (latLng) => {
       const now = Date.now();
-      if (!shouldSendLocation(lastSentAt, now)) return;
-      lastSentAt = now;
+      if (!shouldSendLocation(lastSentAtRef.current, now)) return;
+      lastSentAtRef.current = now;
       updateDriverLocation(uid, latLng).catch((writeError) =>
         console.log('No se pudo enviar la ubicación:', writeError),
       );
-    };
+    },
+    [uid],
+  );
+
+  // AI-assisted: see docs/AI_LOG.md #12
+  // modo demo: cada posición simulada pasa por el mismo envío (y el mismo límite) que el GPS
+  useEffect(() => {
+    if (trackingActive && overrideLocation) sendLocation(overrideLocation);
+  }, [trackingActive, overrideLocation, sendLocation]);
+
+  // seguimiento en tiempo real: solo mientras el conductor está Disponible en la sección Inicio
+  useEffect(() => {
+    if (!trackingActive) return undefined;
+
+    let subscription = null;
+    let cancelled = false;
+    lastSentAtRef.current = null;
 
     async function startTracking() {
       setTrackingError(null);
-      // al activarse se envía de inmediato la última ubicación conocida
-      if (locationRef.current) sendLocation(locationRef.current);
+      // al activarse se envía de inmediato la última ubicación conocida (o la simulada)
+      const initial = overrideRef.current ?? locationRef.current;
+      if (initial) sendLocation(initial);
       try {
         const watcher = await Location.watchPositionAsync(
           WATCH_OPTIONS,
           (position) => {
             const latLng = toLatLng(position);
             setLocation(latLng);
-            sendLocation(latLng);
+            // durante la simulación el GPS se sigue leyendo, pero no se envía
+            if (!overrideRef.current) sendLocation(latLng);
           },
           (watchError) => console.log('Error en el seguimiento de ubicación:', watchError),
         );
@@ -153,9 +178,17 @@ export function useDriverLocation({ uid = null, active = false } = {}) {
         console.log('No se pudo guardar No disponible:', writeError),
       );
     };
-  }, [active, uid, permissionStatus]);
+  }, [trackingActive, uid, sendLocation]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
-  return { permissionStatus, canAskAgain, location, error, trackingError, retry };
+  return {
+    permissionStatus,
+    canAskAgain,
+    // la ubicación simulada (modo demo) tiene prioridad sobre la del GPS
+    location: overrideLocation ?? location,
+    error,
+    trackingError,
+    retry,
+  };
 }
