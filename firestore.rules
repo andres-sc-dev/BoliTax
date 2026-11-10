@@ -1,0 +1,102 @@
+// AI-assisted: see docs/AI_LOG.md #18
+// Reglas de seguridad de Firestore para BoliTax (reemplazan el modo de prueba).
+// - La app del conductor solo puede leer y modificar SUS datos y SUS viajes.
+// - El backend (simulador de pasajeros y pagos con Wompi) usa firebase-admin, que NO pasa por
+//   estas reglas: crea los viajes, aprueba pagos y fija paymentId/paymentReference.
+// - Se publican en Firebase Console > Firestore Database > Reglas.
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // campos que cambian en esta escritura (Firestore solo cuenta los que cambian de valor)
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ---------- conductores ----------
+    match /drivers/{uid} {
+      // solo el propio conductor ve su documento
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      // registro: el documento lo crea el mismo conductor y siempre queda "pendiente"
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.status == 'pending';
+
+      // disponibilidad, ubicación, token de notificaciones y perfil.
+      // No puede aprobarse a sí mismo (status) ni cambiar su documento, correo o fecha de registro.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && !changedKeys().hasAny(['status', 'idNumber', 'email', 'createdAt']);
+
+      allow delete: if false;
+    }
+
+    // ---------- viajes ----------
+    match /trips/{tripId} {
+
+      function isOwnTrip() {
+        return signedIn() && resource.data.driverId == request.auth.uid;
+      }
+
+      function newTrip() {
+        return request.resource.data;
+      }
+
+      // misma tabla de transiciones que src/utils/tripStatus.js (from == to: sin cambio de estado)
+      function validTransition(from, to) {
+        return from == to
+          || (from == 'requested' && to in ['accepted', 'rejected'])
+          || (from == 'accepted' && to in ['driver_arriving', 'cancelled'])
+          || (from == 'driver_arriving' && to in ['in_progress', 'cancelled'])
+          || (from == 'in_progress' && to == 'completed')
+          || (from == 'completed' && to == 'paid');
+      }
+
+      // campos que la app puede cambiar (aceptar, rechazar, iniciar, cancelar, finalizar,
+      // cerrar el resumen, efectivo y cambio a efectivo). fare, commission, driverEarnings,
+      // commissionRate, paymentId y paymentReference NO están: finishTrip los recalcula con los
+      // mismos valores (no cuentan como cambio), pero alterarlos se rechaza.
+      function allowedTripKeys() {
+        return [
+          'status', 'acceptedAt', 'rejectReason', 'rejectedAt', 'pickedUpAt',
+          'cancelledBy', 'cancelledAt', 'route', 'completedAt', 'paymentStatus',
+          'summaryOpen', 'summaryClosedAt', 'paidAt', 'rating',
+          'paymentMethod', 'paymentMethodChangedAt'
+        ];
+      }
+
+      // solo el conductor asignado lee el viaje (todas las consultas de la app filtran por driverId)
+      allow read: if isOwnTrip();
+
+      // los viajes los crea el backend (simulador) y nunca se borran
+      allow create, delete: if false;
+
+      allow update: if isOwnTrip()
+        // el viaje sigue siendo del mismo conductor
+        && newTrip().driverId == resource.data.driverId
+        && changedKeys().hasOnly(allowedTripKeys())
+        && validTransition(resource.data.status, newTrip().status)
+        // la app solo marca "paid" un cobro en efectivo; Wompi lo aprueba el backend
+        && (newTrip().status != 'paid'
+            || resource.data.status == 'paid'
+            || (newTrip().paymentMethod == 'cash' && newTrip().paymentStatus == 'cash'))
+        // estado del pago: la app solo puede dejarlo "pending" o "cash" (nunca approved/rejected)
+        && (!changedKeys().hasAny(['paymentStatus'])
+            || newTrip().paymentStatus in ['pending', 'cash'])
+        // método de pago: solo de Wompi a efectivo, con el viaje finalizado y sin pago aprobado
+        && (!changedKeys().hasAny(['paymentMethod'])
+            || (resource.data.paymentMethod == 'wompi'
+                && newTrip().paymentMethod == 'cash'
+                && resource.data.status == 'completed'
+                && resource.data.paymentStatus != 'approved'))
+        // la calificación simulada solo se escribe al quedar pagado
+        && (!changedKeys().hasAny(['rating']) || newTrip().status == 'paid');
+    }
+  }
+}

@@ -721,3 +721,88 @@ Herramientas usadas:
 - Archivos y commit: src/utils/historyFilters.js, src/utils/__tests__/historyFilters.test.js, src/utils/passengerRating.js, src/utils/__tests__/passengerRating.test.js, src/utils/earnings.js, src/hooks/useTripHistory.js, src/config/tripLabels.js, src/components/TripPaymentPanel.js, src/screens/TripSummaryScreen.js, src/screens/HistoryScreen.js, src/screens/TripDetailScreen.js, src/navigation/HistoryStack.js, src/navigation/AppDrawer.js, src/services/firebase.js, src/services/trips.js, backend/src/routes/payments.js, firestore.indexes.json — ff3cdbd
 - Verificacion: npm test (135 tests en la app y 5 en backend), bundle de Android y npx expo-doctor (20/20) sin errores. Se crearon los indices compuestos en Firestore. Probado en el emulador Pixel_7a: el historial lista los viajes del mas reciente al mas antiguo y los filtros Hoy, Semana, Mes, Rango, Wompi y Efectivo funcionan. El detalle dibuja la ruta guardada sin llamar a OSRM y muestra montos, pago y calificacion. Los viajes pendientes se pudieron cobrar desde el detalle con Wompi y con efectivo. Un error de HistoryScreen se resolvio reiniciando Metro con cache limpia.
 - Aprendizaje: Aprendí que Firestore necesita índices cuando una consulta combina varios filtros con un orden, y que la misma consola te da el enlace para crearlos; también que tardan unos minutos en estar listos. Entendí que para paginar de 20 en 20 no sirve escuchar en tiempo real, sino pedir los datos por partes con un cursor. Me gustó reutilizar el mismo panel de cobro en el resumen y en el detalle, porque así no se repite código. Y aprendí que cuando Metro está corriendo y se edita un archivo a medias, la app puede quedarse con un error viejo, y se arregla reiniciando con la caché limpia.
+
+---
+
+### Entrada #18
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 8, Fase A: pantalla Perfil y configuracion (datos editables, vehiculo, documentos con vencimiento, idioma y cierre de sesion), un diccionario propio de idioma y las reglas de seguridad de Firestore (seccion 3 del documento)
+- Prompt:
+  ```
+  ## Objetivo
+  Cerrar las funcionalidades del proyecto: pantalla de Perfil y configuracion, reglas de seguridad de Firestore, animacion de inicio con el taxi y el README final. Referencia: seccion 3 (pantalla Perfil y configuracion, AsyncStorage solo para preferencias), seccion 8 (bitacora de IA en el README) y seccion 9 (entregables: README con instalacion, variables de entorno y seccion Uso de IA) de docs/requisitos-bolitax.pdf.
+
+  ## Trabajo por fases (2 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: perfil, configuracion y reglas de seguridad (entrada #18)
+  - Pantalla Perfil y configuracion (reemplaza el placeholder del Drawer):
+    - Datos personales editables con las MISMAS validaciones del registro (src/utils/validators.js): foto de perfil (Cloudinary, reutilizando src/services/cloudinary.js), nombre, celular, correo para recibir pagos. El documento de identidad y el correo de la cuenta se muestran pero no se editan.
+    - Vehiculo: datos y foto en modo lectura, con la categoria.
+    - Documentos: lista con estado y fechas de vencimiento; marcar en rojo los vencidos o por vencer en 30 dias.
+    - Estado de la cuenta (pendiente o aprobada).
+    - Selector de idioma Español / Ingles: se guarda en AsyncStorage y en drivers/{uid}.language. Traduce al menos los textos del Drawer y de esta pantalla con un diccionario propio pequeño (sin librerias), dejando la estructura lista para extenderlo.
+    - Boton Cerrar sesion (reutiliza el existente, que ya pone isAvailable en false).
+  - Errores debajo de cada campo y boton Guardar deshabilitado si no hay cambios o hay errores.
+  - Reglas de seguridad de Firestore en firestore.rules (para reemplazar el modo prueba que vence en 30 dias):
+    - drivers/{uid}: solo el propio conductor lee y escribe su documento; no puede cambiarse a si mismo el campo status (la aprobacion es del administrador) ni crear su documento con status distinto de "pending".
+    - trips/{tripId}: el conductor solo lee viajes donde driverId == su uid y solo puede actualizar campos de estado permitidos; no puede cambiar fare, commission, driverEarnings, commissionRate, paymentStatus "approved" ni paymentId (eso lo hace el backend).
+    - El backend usa firebase-admin, que no pasa por estas reglas.
+    - Revisa todas las escrituras que hace la app (registro, disponibilidad, ubicacion, aceptar, rechazar, iniciar, finalizar, cancelar, efectivo, cambiar a efectivo, summaryOpen, fcmToken) para que las reglas las permitan y no rompan nada.
+    - Dime paso a paso como publicarlas en la consola de Firebase (sin instalar la CLI) y que debo probar despues.
+
+  ### Fase B: animacion de inicio y README (entrada #19)
+  - Animacion de inicio (extra propio, no esta en el PDF): al abrir la app, pantalla con el nombre BoliTax como logo y un taxi que entra desde un lado, avanza y se detiene justo debajo del logo, con un pequeño rebote al frenar. Duracion total 2 a 3 segundos y luego pasa a la app (login o inicio segun la sesion). Usa la API Animated de React Native (sin dependencias nuevas). El logo y el taxi deben ser componentes faciles de reemplazar por imagenes cuando hagamos el diseño (por ahora usa un taxi simple hecho con Views o un emoji).
+  - Integrala con la splash nativa de Expo para que no haya un parpadeo en blanco entre la splash y la animacion, si es posible sin dependencias nativas nuevas; si hace falta alguna, pregunta primero.
+  - README.md completo en español:
+    - Descripcion de BoliTax y funcionalidades.
+    - Stack y decisiones (OpenStreetMap/Leaflet/OSRM/Nominatim en lugar de Google Maps; Wompi en lugar de Mercado Pago; @react-native-firebase) con su justificacion breve.
+    - Requisitos previos (Node, JDK 17, Android Studio, emulador con Google Play) y la nota de rutas largas en Windows.
+    - Instalacion y ejecucion paso a paso: app (npx expo run:android), backend (npm run dev) y simulador (npm run simulate con sus argumentos).
+    - Variables de entorno de la app y del backend, apuntando a los .env.example (sin valores), y archivos que cada quien debe agregar (google-services.json, serviceAccountKey.json).
+    - Configuracion manual de Firebase, Cloudinary y Wompi Sandbox, con las tarjetas de prueba.
+    - Estructura de carpetas, scripts de prueba (npm test en app y backend) y modo demo.
+    - Seccion "Uso de IA" con enlace a docs/AI_LOG.md, explicando que se uso Claude (chat) y Claude Code (agente).
+    - Espacio para capturas de pantalla (las agrego despues del diseño).
+
+  ## Reglas
+  - Todo Firebase en la app solo desde src/services/firebase.js.
+  - Sin dependencias nuevas salvo que sean indispensables (pregunta primero).
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+  - Responde en español.
+
+  ## Cierre
+  Muestrame primero el plan de las 2 fases y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente presento el plan de las 2 fases y pregunto como integrar la splash nativa (se decidio instalar `expo-splash-screen` en la Fase B). En la Fase A creo el diccionario propio `translate` con tests, `LanguageContext` (idioma en AsyncStorage y en `drivers/{uid}.language`), las funciones puras `getDocumentStatus`, `validateProfileForm` y `getProfileChanges` con tests, el servicio `driverProfile`, la pantalla Perfil y configuracion, la traduccion del Drawer y el archivo `firestore.rules`.
+- Que se uso / modifico / descarto:
+  - Perfil: nombre, celular, correo para recibir pagos y foto se editan con las mismas validaciones del registro; la foto nueva se sube a Cloudinary con el `uploadImage` existente. Documento de identidad y correo de la cuenta se muestran como solo lectura. "Guardar" se deshabilita si `getProfileChanges` no encuentra cambios (espacios sobrantes o mayusculas en el correo no cuentan) o si hay errores, y solo se escriben los campos que cambiaron.
+  - Documentos: `getDocumentStatus` compara por dia en hora de Colombia: vencido, "vence pronto" (hoy o dentro de 30 dias) o vigente. Vencidos y por vencer se marcan en rojo. La tarjeta amarilla no tiene fecha de vencimiento (asi se registro).
+  - Idioma: diccionario propio `{ es, en }` sin librerias, con valores `{{nombre}}`; si falta un texto en ingles usa el español y, si falta en ambos, muestra la clave. Un test comprueba que los dos idiomas tienen las mismas claves. Por ahora se traducen el Drawer y Perfil; para otra pantalla basta agregar sus claves y usar `t()`. El idioma de la cuenta (`drivers/{uid}.language`) tiene prioridad sobre el guardado en el telefono, asi viaja con el conductor.
+  - Reglas de Firestore: se revisaron todas las escrituras de la app. `drivers/{uid}`: solo el dueño lee y escribe, el documento nace con `status: "pending"` y no puede cambiar `status`, `idNumber`, `email` ni `createdAt`. `trips/{tripId}`: solo el conductor del viaje lee y actualiza; solo puede cambiar una lista cerrada de campos, con la misma tabla de transiciones de `tripStatus.js`; solo marca `paid` un cobro en efectivo; `paymentStatus` solo puede quedar `pending` o `cash`; el metodo solo pasa de Wompi a efectivo; `rating` solo junto con `paid`. `fare`, `commission`, `driverEarnings`, `commissionRate`, `paymentId` y `paymentReference` no estan en la lista: `finishTrip` los vuelve a escribir con los mismos valores (Firestore no los cuenta como cambio), pero alterarlos se rechaza. El backend usa firebase-admin y no pasa por las reglas.
+  - Error propio: al traducir el Drawer el agente agrego primero el uso de `useLanguage` y despues el import (el mismo error de la Entrada #17). El archivo final quedo bien; si Metro lo cargo a mitad, se resuelve con `npx expo start -c`.
+- Archivos y commit: src/i18n/translations.js, src/i18n/__tests__/translations.test.js, src/context/LanguageContext.js, src/services/driverProfile.js, src/utils/documentStatus.js, src/utils/__tests__/documentStatus.test.js, src/utils/profileForm.js, src/utils/__tests__/profileForm.test.js, src/screens/ProfileScreen.js, src/navigation/AppDrawer.js, App.js, firestore.rules — eaaf9ed
+- Verificacion: npm test (153 tests), script de referencias no declaradas, bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: la pantalla de Perfil muestra el estado de la cuenta, los datos, el vehiculo y los documentos; editar el celular se guarda en Firestore y cambiar a English traduce el menu y el perfil. Se publicaron las reglas de seguridad en la consola de Firebase y el flujo completo (viaje, cobro en efectivo, historial y perfil) sigue funcionando sin errores de permisos.
+- Aprendizaje: Aprendí que el modo de prueba de Firestore deja la base abierta a cualquiera, y que las reglas de seguridad son las que de verdad protegen los datos, no solo la app: aunque alguien modificara la app, Firestore no lo dejaría aprobarse a sí mismo ni cambiar la tarifa de un viaje. También entendí que el backend con firebase-admin no pasa por esas reglas, y por eso es el único que puede aprobar un pago con tarjeta. Antes de publicarlas guardé las reglas viejas como respaldo, por si algo se rompía. Y con el idioma aprendí a hacer un diccionario propio sencillo que se puede ampliar sin instalar librerías.
+
+---
+
+### Entrada #19
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 8, Fase B: animacion de inicio con el taxi integrada con la splash nativa, y README final del proyecto (secciones 8 y 9 del documento)
+- Prompt: "Fase A probada: reglas publicadas en la consola y el flujo completo funciona (viaje, cobro en efectivo, historial y perfil) sin errores de permisos. Continua con la Fase B. Responde en español." (el detalle de la Fase B esta en el prompt de la Entrada #18)
+- Resumen de la respuesta: El agente instalo `expo-splash-screen` (aprobado en el plan), configuro su plugin con el mismo color de fondo de la animacion, creo los componentes de marca `BrandLogo` y `TaxiIcon`, la animacion `SplashAnimation` con la API `Animated` y su integracion en `App.js`, y escribio el `README.md` completo en español.
+- Que se uso / modifico / descarto:
+  - Splash sin parpadeo: la splash nativa se configura con fondo `#111111`, el mismo de la animacion (`SPLASH_BACKGROUND` en `brandColors.js`). `SplashScreen.preventAutoHideAsync()` se llama fuera de los componentes, como pide la documentacion, y `SplashScreen.hide()` se llama en el `onLayout` de la animacion, cuando ya esta dibujada con el mismo fondo. Hay un respaldo de 6 s por si la animacion no termina.
+  - La animacion se monta encima de la app, que ya esta montada debajo, asi la sesion carga mientras el taxi avanza y al terminar aparece Login o Inicio sin espera extra.
+  - Animacion (Animated, con useNativeDriver): aparece el logo (opacidad y escala con spring); el taxi entra desde la izquierda con `Easing.out(Easing.cubic)` y se pasa 14 puntos del centro; al frenar vuelve con un `spring` (rebote) mientras se inclina hacia adelante; despues una pausa y la capa se desvanece. Dura unos 2,5-3 s. Si el telefono tiene activado "reducir movimiento", se omite el recorrido. La limpieza del `useEffect` detiene la animacion si la pantalla se desmonta.
+  - `BrandLogo` (texto) y `TaxiIcon` (taxi hecho con Views: letrero, cabina, ventanas, franja de cuadros, farola y ruedas) estan aislados en `src/components/brand/`, para cambiarlos por imagenes en el diseño sin tocar la animacion.
+  - `App.js` se escribio de una sola vez (imports y uso juntos), para no repetir el problema de Fast Refresh de las Entradas #17 y #18.
+  - README: descripcion, funcionalidades, stack y decisiones con su justificacion (OpenStreetMap/Leaflet/OSRM/Nominatim, Wompi, `@react-native-firebase`, una sola fuente de verdad entre app y backend), requisitos previos con la nota de rutas largas en Windows, instalacion y ejecucion (app, backend y simulador con sus argumentos), variables de entorno de la app y del backend con enlaces a los `.env.example`, archivos que hay que agregar, configuracion de Firebase (incluidas reglas e indices), Cloudinary y Wompi Sandbox con las tarjetas de prueba, estructura de carpetas, pruebas, modo demo, seccion "Uso de IA" con enlace a esta bitacora y espacio para capturas. Se comprobo que existen todos los archivos que enlaza.
+- Archivos y commit: src/components/SplashAnimation.js, src/components/brand/BrandLogo.js, src/components/brand/TaxiIcon.js, src/components/brand/brandColors.js, App.js, app.json, package.json, package-lock.json, README.md — d3cc910
+- Verificacion: npm test (153 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Se regenero la carpeta android y se recompilo por expo-splash-screen. Probado en el emulador Pixel_7a: al abrir la app la splash pasa a la animacion sin destello blanco, el taxi entra, frena con un rebote debajo del logo y en unos 3 segundos aparece Login o Inicio. Se reviso el README con la vista previa de VSCode.
+- Aprendizaje: Aprendí a hacer animaciones solo con la API Animated de React Native, combinando un movimiento que desacelera con un rebote para que el taxi parezca que frena de verdad. También entendí cómo evitar el parpadeo blanco al abrir la app: la pantalla de carga nativa y la animación tienen que tener el mismo color, y la nativa se esconde solo cuando la animación ya está dibujada. Me gustó que la app vaya cargando la sesión mientras corre la animación, así no hay que esperar más. Y escribir el README me ayudó a ver todo el proyecto completo y a explicar por qué tomé cada decisión.
