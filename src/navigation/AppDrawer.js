@@ -11,7 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { EarningsProvider } from '../context/EarningsContext';
 import { usePushToken } from '../hooks/usePushToken';
 import EarningsScreen from '../screens/EarningsScreen';
-import HistoryScreen from '../screens/HistoryScreen';
+// AI-assisted: see docs/AI_LOG.md #17 — Historial ahora es un Stack (lista y detalle)
+import HistoryStack from './HistoryStack';
 import ProfileScreen from '../screens/ProfileScreen';
 import HomeStack from './HomeStack';
 
@@ -51,7 +52,7 @@ export default function AppDrawer() {
     <EarningsProvider>
       <Drawer.Navigator drawerContent={(props) => <DrawerContent {...props} />}>
         <Drawer.Screen name="Home" component={HomeStack} options={{ title: 'Inicio' }} />
-        <Drawer.Screen name="History" component={HistoryScreen} options={{ title: 'Historial' }} />
+        <Drawer.Screen name="History" component={HistoryStack} options={{ title: 'Historial' }} />
         <Drawer.Screen name="Earnings" component={EarningsScreen} options={{ title: 'Ganancias' }} />
         <Drawer.Screen
           name="Profile"

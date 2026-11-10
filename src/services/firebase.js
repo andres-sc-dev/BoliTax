@@ -50,3 +50,7 @@ export {
 // AI-assisted: see docs/AI_LOG.md #14
 // ID token del conductor: el backend lo verifica antes de crear o verificar un cobro
 export { getIdToken } from '@react-native-firebase/auth';
+
+// AI-assisted: see docs/AI_LOG.md #17
+// historial paginado: orden, límite de 20 y cursor para "cargar más"
+export { orderBy, limit, startAfter, getDocs } from '@react-native-firebase/firestore';

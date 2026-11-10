@@ -2,6 +2,7 @@
 // Cambios de estado de un viaje desde la app del conductor (sección 3: estados del viaje).
 import { PRICING } from '../config/pricing';
 import { calculateFare } from '../utils/calculateFare';
+import { simulatePassengerRating } from '../utils/passengerRating';
 import { simplifyRoute } from '../utils/simplifyRoute';
 import { canTransition } from '../utils/tripStatus';
 import { db, doc, runTransaction, serverTimestamp, updateDoc } from './firebase';
@@ -134,7 +135,14 @@ export async function markCashPaid(tripId) {
     if (!canTransition(trip.status, 'paid')) {
       throw tripError('trip/invalid-transition', 'Este viaje ya no se puede marcar como pagado.');
     }
-    transaction.update(tripRef, { status: 'paid', paymentStatus: 'cash', paidAt: serverTimestamp() });
+    transaction.update(tripRef, {
+      status: 'paid',
+      paymentStatus: 'cash',
+      paidAt: serverTimestamp(),
+      // AI-assisted: see docs/AI_LOG.md #17
+      // calificación simulada del pasajero (no hay app de pasajero); no se sobrescribe si ya existe
+      rating: trip.rating ?? simulatePassengerRating(),
+    });
   });
 }
 

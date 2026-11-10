@@ -9,6 +9,8 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { canTransition } from '../../../src/utils/tripStatus.js';
+// AI-assisted: see docs/AI_LOG.md #17
+import { simulatePassengerRating } from '../../../src/utils/passengerRating.js';
 import { requireDriver } from '../authMiddleware.js';
 import { db } from '../firebaseAdmin.js';
 import {
@@ -175,6 +177,9 @@ paymentsRouter.post('/wompi/verify', requireDriver, async (req, res, next) => {
         }
         update.status = 'paid';
         update.paidAt = FieldValue.serverTimestamp();
+        // AI-assisted: see docs/AI_LOG.md #17
+        // calificación simulada del pasajero al quedar pagado (misma función que usa la app)
+        if (fresh.rating == null) update.rating = simulatePassengerRating();
       }
       transaction.update(tripRef, update);
     });

@@ -23,8 +23,9 @@ function bogotaParts(ms) {
   };
 }
 
-// instante en que empieza (00:00) un día de Colombia; Date.UTC acepta desbordes (día 0, mes 12)
-function bogotaMidnight(year, month, day) {
+// instante en que empieza (00:00) un día de Colombia; Date.UTC acepta desbordes (día 0, mes 12).
+// AI-assisted: see docs/AI_LOG.md #17 — exportada para el filtro "Rango de fechas" del historial
+export function bogotaMidnight(year, month, day) {
   return Date.UTC(year, month, day) - BOGOTA_OFFSET_MS;
 }
 
