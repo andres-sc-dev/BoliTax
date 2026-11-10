@@ -10,7 +10,8 @@ export default function AuthStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Registro' }} />
+      {/* AI-assisted: see docs/AI_LOG.md #20 — el registro tiene su propio encabezado amarillo */}
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

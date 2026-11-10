@@ -3,10 +3,17 @@
 // Cuando Wompi termina, redirige a `redirectUrl?id=<idTransacción>`. Esa URL NUNCA se carga:
 // se intercepta, se lee el id y se cierra el WebView. El resultado NO se toma de la redirección:
 // el padre llama al backend (verify), que consulta la transacción directamente a Wompi.
+// AI-assisted: see docs/AI_LOG.md #21
+// Rediseño "Damero audaz": encabezado amarillo con damero (cubre la barra de estado) y botón
+// para cerrar. La lógica de interceptar la redirección no cambió.
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { colors } from '../theme';
 import { getTransactionIdFromUrl, isRedirectUrl } from '../utils/wompiRedirect';
+import YellowHeader from './ui/YellowHeader';
 
 export default function WompiCheckoutModal({ checkoutUrl, redirectUrl, onRedirect, onClose }) {
   const [loading, setLoading] = useState(true);
@@ -24,51 +31,78 @@ export default function WompiCheckoutModal({ checkoutUrl, redirectUrl, onRedirec
   };
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Pago con Wompi (prueba)</Text>
-        <Pressable onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeText}>Cerrar</Text>
-        </Pressable>
-      </View>
-      <WebView
-        source={{ uri: checkoutUrl }}
-        // devolver false impide que el WebView cargue la redirect-url
-        onShouldStartLoadWithRequest={(request) => !interceptRedirect(request.url)}
-        // respaldo por si la redirección llega sin pasar por la función anterior
-        onNavigationStateChange={(state) => interceptRedirect(state.url)}
-        onLoadEnd={() => setLoading(false)}
-        startInLoadingState
-        style={styles.webView}
-      />
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" />
+    // statusBarTranslucent: el amarillo del encabezado llega hasta arriba (safeTop)
+    <Modal visible animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <StatusBar style="dark" />
+      <View style={styles.container}>
+        <YellowHeader
+          safeTop
+          title="Pago con Wompi"
+          subtitle="Modo de prueba (Sandbox)"
+          left={
+            <View style={styles.badgeIcon}>
+              <Ionicons name="card" size={20} color={colors.primary} />
+            </View>
+          }
+          right={
+            <Pressable
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar"
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={22} color={colors.primary} />
+            </Pressable>
+          }
+        />
+        <View style={styles.webViewArea}>
+          <WebView
+            source={{ uri: checkoutUrl }}
+            // devolver false impide que el WebView cargue la redirect-url
+            onShouldStartLoadWithRequest={(request) => !interceptRedirect(request.url)}
+            // respaldo por si la redirección llega sin pasar por la función anterior
+            onNavigationStateChange={(state) => interceptRedirect(state.url)}
+            onLoadEnd={() => setLoading(false)}
+            startInLoadingState
+            style={styles.webView}
+          />
+          {loading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : null}
         </View>
-      ) : null}
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
-  },
-  title: { fontSize: 17, fontWeight: '700' },
-  closeButton: { padding: 6 },
-  closeText: { color: '#c62828', fontWeight: '600', fontSize: 15 },
-  webView: { flex: 1 },
-  loading: {
-    ...StyleSheet.absoluteFillObject,
-    top: 56,
+  container: { flex: 1, backgroundColor: colors.background },
+  badgeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.onPrimary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.onPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webViewArea: { flex: 1 },
+  // el checkout de Wompi es una página clara; mientras carga se ve el fondo oscuro
+  webView: { flex: 1, backgroundColor: colors.background },
+  loading: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
   },
 });

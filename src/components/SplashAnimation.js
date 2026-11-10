@@ -4,16 +4,25 @@
 // 2. el taxi entra desde la izquierda y frena justo debajo del logo,
 // 3. al frenar se pasa un poco y vuelve con un rebote (spring), inclinándose hacia adelante,
 // 4. la capa se desvanece y queda la app (Login o Inicio, según la sesión).
-// Dura unos 2,5-3 s. Si el teléfono tiene activado "reducir movimiento", se omite el recorrido.
+// Si el teléfono tiene activado "reducir movimiento", se omite el recorrido.
 // Todas las animaciones usan useNativeDriver: corren en el hilo nativo, sin trabarse.
+// AI-assisted: see docs/AI_LOG.md #20
+// Rediseño "Damero audaz": logo "B", wordmark BoliTAX y taxi nuevo, todo CENTRADO en vertical y
+// horizontal sobre el fondo oscuro, con una franja de damero como "calle". Al terminar el
+// recorrido la composición queda quieta 1,7 s antes de desvanecerse.
 import { useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { spacing } from '../theme';
 import BrandLogo from './brand/BrandLogo';
 import { SPLASH_BACKGROUND } from './brand/brandColors';
 import TaxiIcon, { TAXI_WIDTH } from './brand/TaxiIcon';
+import Wordmark from './brand/Wordmark';
+import CheckerStrip from './ui/CheckerStrip';
 
 // cuánto se pasa el taxi al frenar antes de rebotar (en puntos)
-const BRAKE_OVERSHOOT = 14;
+const BRAKE_OVERSHOOT = 16;
+// tiempo que la composición completa queda quieta y visible (entre 1,5 y 2 s)
+const HOLD_MS = 1700;
 
 export default function SplashAnimation({ onReady, onFinish }) {
   const { width } = useWindowDimensions();
@@ -45,12 +54,12 @@ export default function SplashAnimation({ onReady, onFinish }) {
           logoScale.setValue(1);
           taxiX.setValue(0);
           animation = Animated.sequence([
-            Animated.delay(600),
+            Animated.delay(800),
             Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
           ]);
         } else {
           animation = Animated.sequence([
-            // 1. logo
+            // 1. logo y wordmark
             Animated.parallel([
               Animated.timing(logoOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
               Animated.spring(logoScale, { toValue: 1, friction: 6, useNativeDriver: true }),
@@ -58,7 +67,7 @@ export default function SplashAnimation({ onReady, onFinish }) {
             // 2. el taxi avanza y desacelera (easing out) pasándose un poco del centro
             Animated.timing(taxiX, {
               toValue: BRAKE_OVERSHOOT,
-              duration: 1000,
+              duration: 950,
               easing: Easing.out(Easing.cubic),
               useNativeDriver: true,
             }),
@@ -70,9 +79,9 @@ export default function SplashAnimation({ onReady, onFinish }) {
                 Animated.spring(taxiTilt, { toValue: 0, friction: 3, tension: 120, useNativeDriver: true }),
               ]),
             ]),
-            // 4. pausa corta y se desvanece la capa
-            Animated.delay(350),
-            Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+            // 4. la composición queda quieta y visible, y luego se desvanece
+            Animated.delay(HOLD_MS),
+            Animated.timing(overlayOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
           ]);
         }
         animation.start(({ finished }) => {
@@ -104,12 +113,21 @@ export default function SplashAnimation({ onReady, onFinish }) {
       onLayout={handleLayout}
       pointerEvents="none"
     >
-      <Animated.View style={{ opacity: logoOpacity, transform: [{ scale: logoScale }] }}>
-        <BrandLogo />
-      </Animated.View>
-      <Animated.View style={[styles.taxi, { transform: [{ translateX: taxiX }, { rotate: tilt }] }]}>
-        <TaxiIcon />
-      </Animated.View>
+      {/* bloque centrado: logo + wordmark arriba, taxi y "calle" de damero debajo */}
+      <View style={styles.composition}>
+        <Animated.View
+          style={[styles.brand, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
+        >
+          <BrandLogo variant="onDark" size={112} />
+          <Wordmark variant="onDark" size={42} style={styles.wordmark} />
+        </Animated.View>
+        <Animated.View style={[styles.taxi, { transform: [{ translateX: taxiX }, { rotate: tilt }] }]}>
+          <TaxiIcon />
+        </Animated.View>
+        <View style={styles.road}>
+          <CheckerStrip rows={2} />
+        </View>
+      </View>
     </Animated.View>
   );
 }
@@ -122,5 +140,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  taxi: { marginTop: 28 },
+  composition: { alignItems: 'center' },
+  brand: { alignItems: 'center' },
+  wordmark: { marginTop: spacing.md },
+  taxi: { marginTop: spacing.xxl },
+  road: { width: 240, borderRadius: 2, overflow: 'hidden', marginTop: 2 },
 });

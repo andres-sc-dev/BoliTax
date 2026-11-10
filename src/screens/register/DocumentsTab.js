@@ -1,14 +1,19 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Pestaña 3 del registro: documentos, correo para recibir pagos, términos y envío.
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+// AI-assisted: see docs/AI_LOG.md #20
+// Estilo "Damero audaz": títulos de sección con acento amarillo, aviso de pestañas pendientes y
+// botón primario. La lógica del envío (entrada #6) no cambió.
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Checkbox from '../../components/Checkbox';
 import DateField from '../../components/DateField';
 import FormField from '../../components/FormField';
 import PhotoField from '../../components/PhotoField';
+import { Button } from '../../components/ui';
 import { PRICING } from '../../config/pricing';
 import { useAuth } from '../../context/AuthContext';
 import { useRegister, useTouchTabOnBlur } from '../../context/RegisterContext';
 import { registerDriver } from '../../services/driverRegistration';
+import { colors, radius, spacing, typography } from '../../theme';
 import { getAuthErrorMessage } from '../../utils/authErrors';
 import { requiresTechnicalReview } from '../../utils/validators';
 
@@ -26,6 +31,16 @@ const TAB_NAMES = {
 // AI-assisted: see docs/AI_LOG.md #6
 // pestaña donde está cada campo que puede devolver error Firebase Auth
 const FIELD_TAB_ROUTES = { email: 'PersonalData', password: 'PersonalData' };
+
+// título de sección con una barra amarilla a la izquierda
+function SectionTitle({ children }) {
+  return (
+    <View style={styles.sectionRow}>
+      <View style={styles.sectionBar} />
+      <Text style={styles.section}>{children}</Text>
+    </View>
+  );
+}
 
 export default function DocumentsTab({ navigation }) {
   const {
@@ -85,7 +100,7 @@ export default function DocumentsTab({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.section}>Licencia de conducción</Text>
+      <SectionTitle>Licencia de conducción</SectionTitle>
       <FormField
         label="Número de licencia"
         placeholder="Solo números"
@@ -106,7 +121,7 @@ export default function DocumentsTab({ navigation }) {
         error={getError(TAB, 'licenseExpiry')}
       />
 
-      <Text style={styles.section}>SOAT</Text>
+      <SectionTitle>SOAT</SectionTitle>
       <PhotoField
         label="Foto del SOAT"
         uri={form.soatPhotoUri}
@@ -123,7 +138,7 @@ export default function DocumentsTab({ navigation }) {
       {/* solo se muestra si el vehículo tiene 2 años o más */}
       {needsTechnicalReview ? (
         <>
-          <Text style={styles.section}>Revisión técnico-mecánica</Text>
+          <SectionTitle>Revisión técnico-mecánica</SectionTitle>
           <PhotoField
             label="Foto de la revisión técnico-mecánica"
             uri={form.technicalReviewPhotoUri}
@@ -139,7 +154,7 @@ export default function DocumentsTab({ navigation }) {
         </>
       ) : null}
 
-      <Text style={styles.section}>Tarjeta amarilla</Text>
+      <SectionTitle>Tarjeta amarilla</SectionTitle>
       <PhotoField
         label="Foto de la tarjeta amarilla"
         uri={form.yellowCardPhotoUri}
@@ -147,7 +162,7 @@ export default function DocumentsTab({ navigation }) {
         error={getError(TAB, 'yellowCardPhotoUri')}
       />
 
-      <Text style={styles.section}>Pagos</Text>
+      <SectionTitle>Pagos</SectionTitle>
       <FormField
         // AI-assisted: see docs/AI_LOG.md #14 — el campo en Firestore sigue siendo mercadoPagoEmail
         label="Correo para recibir pagos"
@@ -176,38 +191,29 @@ export default function DocumentsTab({ navigation }) {
 
       {submitErrors.general ? <Text style={styles.generalError}>{submitErrors.general}</Text> : null}
 
-      <Pressable
-        style={[styles.button, (!allValid || submitting) && styles.buttonDisabled]}
+      <Button
+        title={submitting ? 'Enviando registro…' : 'Enviar registro'}
         onPress={handleSubmit}
-        disabled={!allValid || submitting}
-      >
-        {submitting ? (
-          <View style={styles.sendingRow}>
-            <ActivityIndicator color="#fff" />
-            <Text style={styles.buttonText}>  Enviando registro…</Text>
-          </View>
-        ) : (
-          <Text style={styles.buttonText}>Enviar registro</Text>
-        )}
-      </Pressable>
+        disabled={!allValid}
+        loading={submitting}
+        icon="paper-plane"
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, paddingBottom: 40, backgroundColor: '#fff' },
-  section: { fontSize: 17, fontWeight: '700', marginTop: 8, marginBottom: 10 },
-  bold: { fontWeight: '700' },
-  pendingBox: { backgroundColor: '#fff4e5', borderRadius: 8, padding: 12, marginBottom: 12 },
-  pendingText: { color: '#8a5300' },
-  button: {
-    backgroundColor: '#111',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
+  container: { padding: spacing.xl, paddingBottom: spacing.xxl, backgroundColor: colors.background },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.md },
+  sectionBar: { width: 4, height: 20, borderRadius: 2, backgroundColor: colors.primary, marginRight: spacing.sm },
+  section: { ...typography.subtitle, color: colors.text },
+  bold: { fontFamily: typography.bodyStrong.fontFamily, color: colors.primary },
+  pendingBox: {
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
-  buttonDisabled: { backgroundColor: '#999' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  sendingRow: { flexDirection: 'row', alignItems: 'center' },
-  generalError: { color: '#c62828', marginBottom: 12, textAlign: 'center' },
+  pendingText: { ...typography.body, color: colors.warning },
+  generalError: { ...typography.body, color: colors.danger, marginBottom: spacing.sm, textAlign: 'center' },
 });

@@ -5,10 +5,16 @@
 // El cobro (Wompi, efectivo, cambio a efectivo y saldo; entradas #14 y #15) se movió al
 // componente TripPaymentPanel para reutilizarlo en el detalle del historial.
 // Aquí queda la salida: "Volver al inicio" (pagado) o "Volver sin cobrar" (con confirmación).
+// AI-assisted: see docs/AI_LOG.md #21
+// Rediseño "Damero audaz": encabezado amarillo con damero y la ganancia neta en grande,
+// recorrido, desglose de la tarifa y el panel de cobro. La lógica no cambió.
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TripPaymentPanel from '../components/TripPaymentPanel';
+import { Button, Card, Screen, YellowHeader } from '../components/ui';
 import { useTrip } from '../context/TripContext';
+import { colors, mapColors, radius, spacing, typography } from '../theme';
 import { formatCOP } from '../utils/formatCurrency';
 
 export default function TripSummaryScreen({ navigation }) {
@@ -17,19 +23,19 @@ export default function TripSummaryScreen({ navigation }) {
   const [error, setError] = useState(null);
   // AI-assisted: see docs/AI_LOG.md #15 — confirmación de "Volver sin cobrar"
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  // AI-assisted: see docs/AI_LOG.md #21 — margen inferior para la barra de navegación
+  const insets = useSafeAreaInsets();
 
   const goHome = () => navigation.navigate('HomeMain');
 
   // el resumen llega por onSnapshot unos instantes después de finalizar
   if (!trip) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
+      <Screen statusBar="light" style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.muted}>Cargando resumen del viaje…</Text>
-        <Pressable style={styles.linkButton} onPress={goHome}>
-          <Text style={styles.link}>Volver al inicio</Text>
-        </Pressable>
-      </View>
+        <Button title="Volver al inicio" variant="ghost" onPress={goHome} />
+      </Screen>
     );
   }
 
@@ -50,78 +56,96 @@ export default function TripSummaryScreen({ navigation }) {
   const isPaid = trip.status === 'paid';
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Viaje finalizado</Text>
-      <Text style={styles.subtitle}>{trip.passengerName}</Text>
-      <Text style={styles.route}>
-        {trip.origin?.address} → {trip.destination?.address}
-      </Text>
-      <Text style={styles.muted}>
-        {trip.distanceKm} km · {trip.durationMin} min
-      </Text>
+    // el encabezado del Drawer (oscuro) queda arriba: íconos claros en la barra de estado
+    <Screen statusBar="light">
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxl }]}
+      >
+        {/* AI-assisted: see docs/AI_LOG.md #21 — encabezado con la ganancia neta en grande */}
+        <YellowHeader title="Viaje finalizado" subtitle={trip.passengerName}>
+          <View style={styles.hero}>
+            <Text style={styles.heroLabel}>Tu ganancia neta</Text>
+            <Text style={styles.heroAmount}>{formatCOP(trip.driverEarnings)}</Text>
+          </View>
+        </YellowHeader>
 
-      <View style={styles.card}>
-        <Row label="Tarifa final" value={formatCOP(trip.fare)} strong />
-        <Row label={`Comisión de la plataforma (${commissionPercent} %)`} value={`- ${formatCOP(trip.commission)}`} />
-        <Row label="Propina" value={formatCOP(trip.tip ?? 0)} />
-        <View style={styles.divider} />
-        <Row label="Tu ganancia neta" value={formatCOP(trip.driverEarnings)} highlight />
-      </View>
+        <View style={styles.content}>
+          {/* recorrido con los mismos colores del mapa */}
+          <Card>
+            <RoutePoint color={mapColors.pickup} value={trip.origin?.address} showLine />
+            <RoutePoint color={mapColors.destination} value={trip.destination?.address} />
+            <Text style={styles.muted}>
+              {trip.distanceKm} km · {trip.durationMin} min
+            </Text>
+          </Card>
 
-      {/* AI-assisted: see docs/AI_LOG.md #17 — cobro reutilizable */}
-      <TripPaymentPanel trip={trip} />
+          <Card>
+            <Text style={styles.cardTitle}>Detalle de la tarifa</Text>
+            <Row label="Tarifa final" value={formatCOP(trip.fare)} strong />
+            <Row
+              label={`Comisión de la plataforma (${commissionPercent} %)`}
+              value={`- ${formatCOP(trip.commission)}`}
+            />
+            <Row label="Propina" value={formatCOP(trip.tip ?? 0)} />
+            <View style={styles.divider} />
+            <Row label="Tu ganancia neta" value={formatCOP(trip.driverEarnings)} highlight />
+          </Card>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* AI-assisted: see docs/AI_LOG.md #17 — cobro reutilizable */}
+          <TripPaymentPanel trip={trip} />
 
-      {/* AI-assisted: see docs/AI_LOG.md #15
-          Con el pago resuelto se vuelve directo; sin pagar se puede salir dejando el cobro
-          pendiente (con confirmación), para no bloquear al conductor si Wompi o el backend fallan. */}
-      {isPaid ? (
-        <Pressable style={[styles.button, styles.homeButton]} onPress={handleClose} disabled={closing}>
-          {closing ? (
-            <ActivityIndicator color="#fff" />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {/* AI-assisted: see docs/AI_LOG.md #15
+              Con el pago resuelto se vuelve directo; sin pagar se puede salir dejando el cobro
+              pendiente (con confirmación), para no bloquear al conductor si Wompi o el backend fallan. */}
+          {isPaid ? (
+            <Button
+              title="Volver al inicio"
+              icon="home"
+              onPress={handleClose}
+              loading={closing}
+              style={styles.homeButton}
+            />
+          ) : confirmingLeave ? (
+            <View style={styles.confirmBox}>
+              <Text style={styles.confirmText}>
+                El pago quedará pendiente y podrás cobrarlo más tarde desde el historial. Mientras
+                tanto seguirás recibiendo solicitudes.
+              </Text>
+              <Button
+                title="Volver sin cobrar"
+                variant="secondary"
+                onPress={handleClose}
+                loading={closing}
+              />
+              <Button
+                title="Cancelar"
+                variant="ghost"
+                compact
+                onPress={() => setConfirmingLeave(false)}
+                disabled={closing}
+              />
+            </View>
           ) : (
-            <Text style={styles.buttonText}>Volver al inicio</Text>
+            <Button
+              title="Volver sin cobrar"
+              variant="ghost"
+              onPress={() => setConfirmingLeave(true)}
+              style={styles.leaveButton}
+              textStyle={styles.leaveText}
+            />
           )}
-        </Pressable>
-      ) : confirmingLeave ? (
-        <View style={styles.confirmBox}>
-          <Text style={styles.confirmText}>
-            El pago quedará pendiente y podrás cobrarlo más tarde desde el historial. Mientras tanto
-            seguirás recibiendo solicitudes.
-          </Text>
-          <Pressable
-            style={[styles.button, styles.confirmButton]}
-            onPress={handleClose}
-            disabled={closing}
-          >
-            {closing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Volver sin cobrar</Text>
-            )}
-          </Pressable>
-          <Pressable
-            style={styles.linkButton}
-            onPress={() => setConfirmingLeave(false)}
-            disabled={closing}
-          >
-            <Text style={styles.link}>Cancelar</Text>
-          </Pressable>
         </View>
-      ) : (
-        <Pressable style={styles.linkButton} onPress={() => setConfirmingLeave(true)}>
-          <Text style={styles.leaveText}>Volver sin cobrar</Text>
-        </Pressable>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </Screen>
   );
 }
 
 function Row({ label, value, strong, highlight }) {
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={[styles.rowLabel, highlight && styles.rowLabelHighlight]}>{label}</Text>
       <Text style={[styles.rowValue, strong && styles.strong, highlight && styles.highlight]}>
         {value}
       </Text>
@@ -129,35 +153,62 @@ function Row({ label, value, strong, highlight }) {
   );
 }
 
+// AI-assisted: see docs/AI_LOG.md #21 — punto del recorrido (origen o destino)
+function RoutePoint({ color, value, showLine = false }) {
+  return (
+    <View style={styles.point}>
+      <View style={styles.pointMarker}>
+        <View style={[styles.pointDot, { backgroundColor: color }]} />
+        {showLine ? <View style={styles.pointLine} /> : null}
+      </View>
+      <Text style={styles.pointValue}>{value ?? '—'}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { padding: 20, paddingBottom: 32, backgroundColor: '#fff', flexGrow: 1 },
-  center: {
+  center: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  scroll: { flexGrow: 1 },
+  hero: { marginTop: spacing.lg },
+  heroLabel: { ...typography.label, color: colors.onPrimaryMuted, textTransform: 'uppercase' },
+  heroAmount: { ...typography.display, color: colors.onPrimary },
+  content: { paddingHorizontal: spacing.lg },
+  cardTitle: { ...typography.subtitle, color: colors.text, marginBottom: spacing.sm },
+  muted: { ...typography.body, color: colors.textMuted, marginTop: spacing.xs },
+  point: { flexDirection: 'row' },
+  pointMarker: { width: 20, alignItems: 'center' },
+  pointDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
+  pointLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 4 },
+  pointValue: {
+    ...typography.bodyStrong,
+    color: colors.text,
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
+    marginLeft: spacing.sm,
+    paddingBottom: spacing.md,
   },
-  title: { fontSize: 26, fontWeight: '700' },
-  subtitle: { fontSize: 18, fontWeight: '600', marginTop: 4 },
-  route: { fontSize: 15, color: '#333', marginTop: 8 },
-  muted: { color: '#666', marginTop: 4 },
-  card: { backgroundColor: '#f5f5f5', borderRadius: 12, padding: 14, marginTop: 16 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 5 },
-  rowLabel: { fontSize: 15, color: '#444', flexShrink: 1, marginRight: 8 },
-  rowValue: { fontSize: 16, color: '#222' },
-  strong: { fontWeight: '700' },
-  highlight: { fontWeight: '700', fontSize: 20, color: '#2e7d32' },
-  divider: { height: 1, backgroundColor: '#ddd', marginVertical: 6 },
-  confirmBox: { backgroundColor: '#fff4e5', borderRadius: 10, padding: 12, marginTop: 20 },
-  confirmText: { color: '#5c3b00', fontWeight: '600' },
-  error: { color: '#c62828', textAlign: 'center', marginTop: 12 },
-  // sin flex: 1 (los botones están en una columna; ver corrección de la entrada #12)
-  button: { borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 10 },
-  confirmButton: { backgroundColor: '#8a5300' },
-  homeButton: { backgroundColor: '#111', marginTop: 24 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  linkButton: { marginTop: 16, padding: 8, alignItems: 'center' },
-  link: { color: '#1565c0', fontWeight: '600' },
-  leaveText: { color: '#555', fontWeight: '600', textDecorationLine: 'underline' },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 6,
+  },
+  rowLabel: { ...typography.body, color: colors.textMuted, flexShrink: 1, marginRight: spacing.sm },
+  rowLabelHighlight: { ...typography.bodyStrong, color: colors.text },
+  rowValue: { ...typography.bodyStrong, color: colors.text },
+  strong: { fontFamily: typography.amount.fontFamily, fontSize: 17 },
+  highlight: { ...typography.amount, color: colors.success },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
+  confirmBox: {
+    backgroundColor: colors.warningSoft,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.xl,
+  },
+  confirmText: { ...typography.bodyStrong, color: colors.text },
+  error: { ...typography.body, color: colors.danger, textAlign: 'center', marginTop: spacing.md },
+  homeButton: { marginTop: spacing.xl },
+  leaveButton: { marginTop: spacing.lg },
+  leaveText: { textDecorationLine: 'underline' },
 });

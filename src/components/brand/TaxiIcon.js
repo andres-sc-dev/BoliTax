@@ -1,106 +1,152 @@
 // AI-assisted: see docs/AI_LOG.md #19
-// Taxi simple hecho con Views (vista lateral, mirando a la derecha), para la animación de inicio.
-// Cuando se haga el diseño se reemplaza por <Image source={...} /> con el mismo tamaño.
+// AI-assisted: see docs/AI_LOG.md #20
+// Taxi moderno (vista lateral, mirando a la derecha) hecho con Views, para la animación de inicio:
+// carrocería amarilla, techo con letrero, ventanas oscuras, franja de damero, luces y ruedas
+// con el mismo centro de damero del logo. Se puede cambiar por <Image> con el mismo tamaño.
 import { StyleSheet, Text, View } from 'react-native';
-import { TAXI_DARK, TAXI_YELLOW } from './brandColors';
+import { colors, fonts } from '../../theme';
 
-export const TAXI_WIDTH = 140;
+export const TAXI_WIDTH = 168;
+const CHECKS = 12;
 
-export default function TaxiIcon() {
+function Wheel({ style }) {
   return (
-    <View style={styles.container} accessibilityLabel="Taxi">
-      {/* letrero TAXI sobre el techo */}
-      <View style={styles.sign}>
-        <Text style={styles.signText}>TAXI</Text>
-      </View>
-      {/* cabina con dos ventanas */}
-      <View style={styles.cabin}>
-        <View style={styles.window} />
-        <View style={styles.window} />
-      </View>
-      {/* carrocería con franja de cuadros y farola delantera */}
-      <View style={styles.body}>
-        <View style={styles.checkers}>
-          {Array.from({ length: 8 }, (_, index) => (
-            <View key={index} style={[styles.checker, index % 2 === 1 && styles.checkerDark]} />
-          ))}
+    <View style={[styles.wheel, style]}>
+      <View style={styles.rim}>
+        {/* centro de la rueda: damero de 2 x 2, como el logo */}
+        <View style={styles.hubRow}>
+          <View style={[styles.hubCell, styles.hubDark]} />
+          <View style={styles.hubCell} />
         </View>
-        <View style={styles.headlight} />
-      </View>
-      {/* ruedas */}
-      <View style={[styles.wheel, styles.wheelBack]}>
-        <View style={styles.hub} />
-      </View>
-      <View style={[styles.wheel, styles.wheelFront]}>
-        <View style={styles.hub} />
+        <View style={styles.hubRow}>
+          <View style={styles.hubCell} />
+          <View style={[styles.hubCell, styles.hubDark]} />
+        </View>
       </View>
     </View>
   );
 }
 
+export default function TaxiIcon() {
+  return (
+    <View style={styles.container} accessibilityLabel="Taxi">
+      {/* letrero TAXI */}
+      <View style={styles.sign}>
+        <Text style={styles.signText}>TAXI</Text>
+      </View>
+      {/* cabina: techo inclinado con dos ventanas */}
+      <View style={styles.cabin}>
+        <View style={[styles.window, styles.windowBack]} />
+        <View style={[styles.window, styles.windowFront]} />
+      </View>
+      {/* carrocería */}
+      <View style={styles.body}>
+        <View style={styles.checkers}>
+          {Array.from({ length: CHECKS }, (_, index) => (
+            <View key={index} style={styles.checkColumn}>
+              <View style={[styles.check, index % 2 === 0 && styles.checkDark]} />
+              <View style={[styles.check, index % 2 === 1 && styles.checkDark]} />
+            </View>
+          ))}
+        </View>
+        <View style={styles.headlight} />
+        <View style={styles.taillight} />
+      </View>
+      <Wheel style={styles.wheelBack} />
+      <Wheel style={styles.wheelFront} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { width: TAXI_WIDTH, height: 84 },
+  container: { width: TAXI_WIDTH, height: 92 },
   sign: {
     position: 'absolute',
     top: 0,
-    left: 52,
-    width: 36,
-    height: 12,
-    backgroundColor: TAXI_DARK,
-    borderRadius: 3,
+    left: 66,
+    width: 40,
+    height: 13,
+    borderRadius: 4,
+    backgroundColor: colors.onPrimary,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  signText: { color: TAXI_YELLOW, fontSize: 8, fontWeight: '800' },
+  signText: { color: colors.primary, fontSize: 8, fontFamily: fonts.extraBold, letterSpacing: 1 },
   cabin: {
     position: 'absolute',
-    top: 12,
-    left: 30,
-    width: 80,
-    height: 26,
-    backgroundColor: TAXI_YELLOW,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 18,
+    top: 13,
+    left: 34,
+    width: 100,
+    height: 30,
+    backgroundColor: colors.primary,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 30,
     flexDirection: 'row',
-    justifyContent: 'space-evenly',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    paddingHorizontal: 10,
+    paddingBottom: 4,
   },
-  window: { width: 30, height: 16, backgroundColor: '#8ecae6', borderRadius: 4 },
+  window: { height: 18, backgroundColor: '#2B2F3A', marginRight: 6 },
+  windowBack: { width: 34, borderTopLeftRadius: 12 },
+  windowFront: { width: 40, borderTopRightRadius: 16 },
   body: {
     position: 'absolute',
-    top: 38,
+    top: 42,
     left: 0,
     width: TAXI_WIDTH,
-    height: 30,
-    backgroundColor: TAXI_YELLOW,
-    borderRadius: 10,
+    height: 32,
+    backgroundColor: colors.primary,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
     justifyContent: 'center',
   },
-  checkers: { flexDirection: 'row', alignSelf: 'center', marginTop: 2 },
-  checker: { width: 8, height: 6, backgroundColor: '#ffffff' },
-  checkerDark: { backgroundColor: TAXI_DARK },
+  checkers: { flexDirection: 'row', alignSelf: 'center' },
+  checkColumn: { flexDirection: 'column' },
+  check: { width: 7, height: 5, backgroundColor: colors.primary },
+  checkDark: { backgroundColor: colors.onPrimary },
   headlight: {
     position: 'absolute',
-    right: 4,
-    top: 8,
-    width: 8,
-    height: 8,
+    right: 2,
+    top: 7,
+    width: 10,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: '#fff8d6',
+    backgroundColor: '#FFF6D5',
+  },
+  taillight: {
+    position: 'absolute',
+    left: 2,
+    top: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 2,
+    backgroundColor: colors.danger,
   },
   wheel: {
     position: 'absolute',
-    top: 56,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: TAXI_DARK,
-    borderWidth: 3,
-    borderColor: '#333333',
+    top: 60,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.onPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  wheelBack: { left: 18 },
-  wheelFront: { right: 18 },
-  hub: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb' },
+  wheelBack: { left: 24 },
+  wheelFront: { right: 24 },
+  rim: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  hubRow: { flexDirection: 'row', flex: 1 },
+  hubCell: { flex: 1, backgroundColor: colors.primary },
+  hubDark: { backgroundColor: colors.onPrimary },
 });

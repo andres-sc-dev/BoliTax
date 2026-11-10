@@ -1,23 +1,24 @@
 // AI-assisted: see docs/AI_LOG.md #19
-// Logo de BoliTax. Por ahora es texto; cuando se haga el diseño se reemplaza por
-// <Image source={require('../../../assets/logo.png')} /> sin tocar la animación.
-import { StyleSheet, Text, View } from 'react-native';
-import { TAXI_YELLOW } from './brandColors';
+// AI-assisted: see docs/AI_LOG.md #20
+// Logo "B" de BoliTax como imagen (PNG generados desde assets/brand/*.svg con
+// `npm run brand:assets`; no se usa react-native-svg).
+// variant: 'onDark'   -> B negra sobre cuadrado amarillo (para fondos oscuros)
+//          'onYellow' -> B amarilla sobre cuadrado negro (para fondos amarillos)
+import { Image } from 'react-native';
 
-export default function BrandLogo() {
+const SOURCES = {
+  onDark: require('../../../assets/brand/logo-b-light.png'),
+  onYellow: require('../../../assets/brand/logo-b-dark.png'),
+};
+
+export default function BrandLogo({ variant = 'onDark', size = 96, style }) {
   return (
-    <View style={styles.container} accessibilityRole="header" accessibilityLabel="BoliTax">
-      <Text style={styles.text}>
-        Boli<Text style={styles.accent}>Tax</Text>
-      </Text>
-      <Text style={styles.tagline}>Conductores</Text>
-    </View>
+    <Image
+      source={SOURCES[variant] ?? SOURCES.onDark}
+      style={[{ width: size, height: size }, style]}
+      resizeMode="contain"
+      accessibilityRole="image"
+      accessibilityLabel="Logo de BoliTax"
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { alignItems: 'center' },
-  text: { fontSize: 46, fontWeight: '800', color: '#ffffff', letterSpacing: 1 },
-  accent: { color: TAXI_YELLOW },
-  tagline: { fontSize: 14, color: '#bbbbbb', letterSpacing: 4, marginTop: 2 },
-});

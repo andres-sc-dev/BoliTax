@@ -1,7 +1,10 @@
 // AI-assisted: see docs/AI_LOG.md #5
 // Lista desplegable propia: un campo que abre un Modal con las opciones.
+// AI-assisted: see docs/AI_LOG.md #20 — estilo "Damero audaz" (misma API y lógica)
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing, typography } from '../theme';
 
 export default function SelectField({
   label,
@@ -26,7 +29,7 @@ export default function SelectField({
         <Text style={selected ? styles.value : styles.placeholder}>
           {selected ? selected.label : placeholder}
         </Text>
-        <Text style={styles.arrow}>▾</Text>
+        <Ionicons name="chevron-down" size={18} color={colors.primary} />
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -38,13 +41,17 @@ export default function SelectField({
             <FlatList
               data={options}
               keyExtractor={(item) => item.value}
-              renderItem={({ item }) => (
-                <Pressable style={styles.option} onPress={() => handleSelect(item.value)}>
-                  <Text style={[styles.optionText, item.value === value && styles.optionSelected]}>
-                    {item.label}
-                  </Text>
-                </Pressable>
-              )}
+              renderItem={({ item }) => {
+                const isSelected = item.value === value;
+                return (
+                  <Pressable style={styles.option} onPress={() => handleSelect(item.value)}>
+                    <Text style={[styles.optionText, isSelected && styles.optionSelected]}>
+                      {item.label}
+                    </Text>
+                    {isSelected ? <Ionicons name="checkmark" size={20} color={colors.primary} /> : null}
+                  </Pressable>
+                );
+              }}
             />
           </View>
         </Pressable>
@@ -54,33 +61,52 @@ export default function SelectField({
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: 14 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 4, color: '#222' },
+  container: { marginBottom: spacing.lg },
+  label: { ...typography.label, color: colors.textMuted, marginBottom: 6 },
   field: {
+    minHeight: 50,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
   },
-  fieldError: { borderColor: '#c62828' },
-  value: { fontSize: 16, color: '#111' },
-  placeholder: { fontSize: 16, color: '#999' },
-  arrow: { fontSize: 16, color: '#555' },
-  error: { color: '#c62828', fontSize: 13, marginTop: 4 },
+  fieldError: { borderColor: colors.danger },
+  value: { ...typography.body, color: colors.text, fontSize: 16 },
+  placeholder: { ...typography.body, color: colors.textMuted, fontSize: 16 },
+  error: { ...typography.caption, color: colors.danger, marginTop: 6 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: colors.backdrop,
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.xl,
   },
-  sheet: { backgroundColor: '#fff', borderRadius: 12, paddingVertical: 8, maxHeight: '70%' },
-  sheetTitle: { fontSize: 16, fontWeight: '700', paddingHorizontal: 16, paddingVertical: 10 },
-  option: { paddingHorizontal: 16, paddingVertical: 14 },
-  optionText: { fontSize: 16, color: '#111' },
-  optionSelected: { fontWeight: '700', color: '#1565c0' },
+  sheet: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.sm,
+    maxHeight: '70%',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sheetTitle: {
+    ...typography.subtitle,
+    color: colors.text,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  option: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  optionText: { ...typography.body, color: colors.text, fontSize: 16 },
+  optionSelected: { fontFamily: typography.bodyStrong.fontFamily, color: colors.primary },
 });
