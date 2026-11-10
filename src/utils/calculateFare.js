@@ -1,5 +1,8 @@
 // AI-assisted: see docs/AI_LOG.md #2
-import { PRICING } from '../config/pricing';
+// AI-assisted: see docs/AI_LOG.md #10
+// la extensión .js es obligatoria para que el backend (Node ESM) pueda importar este archivo;
+// Metro y Jest la aceptan igual, así app y backend usan la MISMA función
+import { PRICING } from '../config/pricing.js';
 
 // lanza un error si el valor no es un número finito mayor o igual a cero
 function assertNonNegativeNumber(value, name) {

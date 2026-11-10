@@ -379,3 +379,90 @@ Herramientas usadas:
 - Archivos y commit: src/utils/routeParsers.js, src/utils/__tests__/routeParsers.test.js, src/services/routing.js, src/screens/HomeScreen.js, src/hooks/useDriverLocation.js (sin logs DIAG), docs/AI_LOG.md (ajuste de la Entrada #8) — 6d059ff
 - Verificacion: npm test (75 tests, 7 suites), npx expo export --platform android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: el boton TEMPORAL "Probar ruta" dibuja la linea entre el Parque Berrio y el Parque Lleras, ajusta el zoom para mostrar la ruta completa y muestra la distancia, la duracion y la direccion de origen. "Quitar ruta" borra la linea.
 - Aprendizaje: Aprendí que para calcular rutas, distancias y tiempos no necesito pagar Google, porque OSRM y Nominatim hacen lo mismo gratis, pero hay que respetar sus reglas, como mandar máximo una petición por segundo a Nominatim e identificar la app. También entendí que las respuestas de una API casi nunca vienen como uno las necesita: OSRM manda las coordenadas al revés (primero longitud y luego latitud) y Nominatim devuelve la ciudad con un nombre largo, entonces es mejor tener funciones que limpien esos datos y probarlas con tests sin depender de internet. Y aprendí que toda llamada a internet necesita un tiempo límite y mensajes de error claros, para que la app no se quede colgada si algo falla.
+
+---
+
+### Entrada #10
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 4, Fase A: backend (Node + Express + firebase-admin), simulador de pasajeros que crea viajes en `trips`, y recepcion de solicitudes en la app con temporizador de 15 s, aceptar y rechazar (secciones 3, 6 y 7 del documento)
+- Prompt:
+  ```
+  ## Objetivo
+  Crear el backend, un simulador de pasajeros y la recepcion de solicitudes de viaje en la app del conductor, con temporizador de 15 segundos, notificacion push y sonido. Referencia: seccion 3 (solicitud entrante, estados del viaje, hook useTripRequests), seccion 6 (modelo de datos trips) y seccion 7 (FCM, Firestore en tiempo real) de docs/requisitos-bolitax.pdf.
+
+  ## Contexto
+  - Rutas y distancias: src/services/routing.js (OSRM) ya existe. El backend puede reutilizar la logica o llamar a OSRM directamente.
+  - Tarifas: calculateFare de src/utils/calculateFare.js. Debe ser la MISMA funcion en app y backend; resuelve como compartirla sin duplicar codigo.
+  - Llave de servicio de Firebase: backend/serviceAccountKey.json. NO la leas; solo referenciala por su ruta.
+  - Sonido: assets/sounds/new_request.wav.
+  - El seguimiento de ubicacion y la disponibilidad viven en AvailabilityContext dentro de HomeStack. Las pantallas nuevas de este modulo van dentro de HomeStack.
+
+  ## Trabajo por fases (2 fases)
+  Al terminar CADA fase: detente, dime como verificarla, sugiere el commit (español con prefijo en ingles), agrega la entrada a docs/AI_LOG.md y espera "continua".
+
+  ### Fase A: backend, simulador y solicitud entrante (entrada #10)
+  - Instala en esta fase TODAS las dependencias nativas del modulo completo (sonido y canal de notificaciones incluidos) para recompilar una sola vez.
+  - backend/ con su propio package.json: Node + Express + firebase-admin. backend/.env.example con nombres de variables. Script "npm run dev" y endpoint GET /health.
+  - backend/scripts/simulatePassenger.js (script "npm run simulate"): busca un conductor con isAvailable true y status "approved", genera origen y destino aleatorios dentro de Medellin cerca del conductor, calcula distancia y duracion con OSRM, calcula la tarifa con calculateFare y crea un documento en trips con status "requested" y todos los campos de la seccion 6 del PDF (driverId, passengerId simulado, passengerName, origin y destination con lat/lng/address, distanceKm, durationMin, category, paymentMethod, fare, commission, tip 0, driverEarnings, commissionRate, paymentStatus "pending", createdAt). Argumentos opcionales para categoria y metodo de pago (mercadopago o cash).
+  - App: TripContext con useContext para el viaje activo (lo exige el PDF).
+  - Hook useTripRequests: con onSnapshot escucha trips donde driverId == uid y status == "requested", con limpieza en useEffect. Solo escucha si el conductor esta Disponible.
+  - Pantalla o modal de solicitud entrante con: nombre del pasajero, origen, destino, distancia, duracion, categoria, metodo de pago, tarifa estimada y ganancia neta estimada. Temporizador visible de 15 segundos con limpieza en useEffect; al llegar a 0 se rechaza sola.
+  - Aceptar y Rechazar con useCallback. Aceptar: status "accepted" y luego "driver_arriving", guarda acceptedAt y navega a una pantalla placeholder "Viaje en curso" (se implementa en el modulo 5). Rechazar o vencer: status "rejected".
+  - Mientras haya un viaje activo, no mostrar nuevas solicitudes.
+  - Quita el boton TEMPORAL "Probar ruta" de HomeScreen.
+
+  ### Fase B: notificacion push y sonido (entrada #11)
+  - La app pide permiso de notificaciones (Android 13+), obtiene el token FCM y lo guarda en drivers/{uid}.fcmToken; si cambia, lo actualiza.
+  - Canal de notificaciones de Android con el sonido new_request.wav.
+  - El simulador, al crear el viaje, envia una notificacion FCM al token del conductor usando ese canal.
+  - App abierta: suena new_request.wav al llegar la solicitud. App en segundo plano o cerrada: llega la notificacion con ese sonido y al tocarla abre la app en la solicitud.
+
+  ## Reglas
+  - Todo Firebase en la app solo desde src/services/firebase.js.
+  - Dependencias con npx expo install en la app; en backend/ con npm install.
+  - Secretos solo en backend y nunca en Git.
+  - Comentario // AI-assisted: see docs/AI_LOG.md #N segun la fase.
+
+  ## Cierre
+  Muestrame primero el plan de las 2 fases, las dependencias y lo que me toca hacer manualmente. Espera mi aprobacion.
+  ```
+- Resumen de la respuesta: El agente presento el plan de las 2 fases. En la Fase A creo el backend (Express con `GET /health`, `firebaseAdmin.js` que solo pasa la ruta de la llave al SDK, y el simulador `npm run simulate`), el servicio `trips.js` (aceptar con transaccion, rechazar), el hook `useTripRequests`, `TripContext` (viaje activo y solicitud pendiente), el modal de solicitud entrante con temporizador de 15 s, el placeholder "Viaje en curso" y funciones puras con tests (`formatCOP`, `pickNextRequest`, `isRequestStale`, `secondsLeft`). Quito el boton TEMPORAL "Probar ruta".
+- Que se uso / modifico / descarto:
+  - `calculateFare` compartida sin duplicar: el backend es ESM (`"type": "module"`) e importa directamente `src/utils/calculateFare.js`, `src/config/pricing.js` y `src/utils/routeParsers.js`. El unico cambio en la app fue poner la extension `.js` al import de `pricing` en `calculateFare.js` (Node ESM la exige; Metro y Jest la aceptan). Se comprobo desde Node que el ejemplo XL de la seccion 5 da 26.900 / 5.380 / 21.520. Node 24 detecta solo que esos archivos son ESM; el aviso se oculta con `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`.
+  - El backend usa `--env-file` de Node en lugar de instalar `dotenv`. `backend/.env` se creo copiando `backend/.env.example` (solo PORT y la ruta de la llave, sin secretos).
+  - Sonido: el archivo entregado es `assets/sounds/new_request.mp3` (un MP3 real), no `.wav`. Se decidio usar el `.mp3`, que Android acepta para notificaciones y expo-audio reproduce.
+  - Dependencias de la app instaladas en esta fase para recompilar una sola vez: `expo-notifications` (canal con sonido y permiso de Android 13+; plugin con `sounds` y `defaultChannel: "trip_requests"`), `expo-audio` (sonido con la app abierta; plugin con microfono desactivado) y, con aprobacion, `expo-asset`, que `expo-doctor` pidio como dependencia directa de expo-audio. Backend: `express` y `firebase-admin`.
+  - Aceptar usa una transaccion de Firestore que verifica que el viaje siga en `requested`, para no aceptar una solicitud que ya vencio. Luego pasa a `driver_arriving`.
+  - Rechazar guarda `rejectReason` (`driver` o `timeout`) y `rejectedAt`. Las solicitudes con mas de 2 minutos (por ejemplo, de cuando la app estuvo cerrada) se rechazan solas por `timeout` y no se muestran.
+  - El temporizador cuenta 15 s desde que aparece la solicitud en pantalla (no desde `createdAt`), para no depender del reloj del emulador. El modal se monta con `key={request.id}`, asi cada solicitud tiene su propio temporizador.
+  - El modal vive en `HomeStack`, fuera del Stack, para mostrarse sobre cualquier pantalla de la seccion Inicio. Las consultas usan solo filtros de igualdad (`==` e `in`) y ordenan en el cliente, para no requerir indices compuestos.
+  - El simulador busca el conductor Disponible y aprobado con la ubicacion mas reciente; por defecto usa la categoria del vehiculo del conductor y un metodo de pago aleatorio.
+- Archivos y commit: backend/package.json, backend/package-lock.json, backend/.env.example, backend/src/server.js, backend/src/firebaseAdmin.js, backend/src/geo.js, backend/scripts/simulatePassenger.js, src/utils/calculateFare.js, src/services/firebase.js, src/services/trips.js, src/hooks/useTripRequests.js, src/context/TripContext.js, src/components/IncomingRequestModal.js, src/screens/TripInProgressScreen.js, src/screens/HomeScreen.js, src/navigation/HomeStack.js, src/utils/tripRequest.js, src/utils/formatCurrency.js, src/utils/__tests__/tripRequest.test.js, app.json, package.json, package-lock.json — 681d03f
+- Verificacion: npm test (84 tests), bundle de Android y npx expo-doctor (20/20) sin errores. GET /health responde ok. Probado en el emulador Pixel_7a con el conductor aprobado y Disponible: npm run simulate crea el viaje y en 1 a 2 segundos aparece el modal con todos los datos y la cuenta regresiva de 15 s. Sin tocar nada queda rejected por timeout, Rechazar deja rejected por driver y Aceptar deja driver_arriving con acceptedAt y abre Viaje en curso. Con un viaje activo no aparecen solicitudes nuevas.
+- Aprendizaje: Aprendí que sin app de pasajero se puede simular todo con un script en el backend que crea viajes en Firestore, y la app los recibe al instante porque está escuchando en tiempo real. También entendí que la misma función de tarifas sirve para la app y para el backend sin copiarla, así si cambio un precio cambia en los dos lados. Me pareció clave que aceptar un viaje se haga con una transacción, porque así no se puede aceptar una solicitud que ya venció. Y aprendí que el temporizador tiene que limpiarse bien en el useEffect, si no se quedan contadores corriendo por detrás.
+
+---
+
+### Entrada #11
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 4, Fase B: notificacion push (FCM) y sonido cuando llega una solicitud de viaje, con la app abierta, en segundo plano o cerrada (secciones 3 y 7 del documento)
+- Prompt: "Fase A probada: el modal aparece, el temporizador rechaza por timeout, Rechazar y Aceptar funcionan. Continua con la Fase B." (el detalle de la Fase B esta en el prompt de la Entrada #10)
+- Resumen de la respuesta: El agente creo el servicio `notifications.js` (canal de Android `trip_requests` con el sonido y permiso de notificaciones), el hook `usePushToken` (token FCM en `drivers/{uid}.fcmToken`, solo si cambio, y renovacion con `onTokenRefresh`), el hook `useOpenFromNotification` (abrir la seccion Inicio al tocar la notificacion), el sonido con expo-audio en `TripContext` cuando aparece una solicitud nueva, el manejador de mensajes en segundo plano en `index.js` y el envio de la notificacion desde el simulador.
+- Que se uso / modifico / descarto:
+  - Reparto de librerias: `expo-notifications` solo crea el canal y pide el permiso de Android 13+; `@react-native-firebase/messaging` da el token y detecta la apertura desde la notificacion. Con la app abierta no se usa FCM: la solicitud llega por Firestore y el sonido lo reproduce expo-audio, asi no suena dos veces.
+  - En Android 8+ el sonido se define en el canal, no en cada notificacion. El canal usa `new_request.mp3`, que el plugin de expo-notifications copio a `res/raw` en la recompilacion de la Fase A. Android no permite cambiar el sonido de un canal ya creado.
+  - El orden importa: primero se crea el canal y despues se pide el permiso, porque en Android 13+ el dialogo no aparece si no existe ningun canal.
+  - El token se registra en `AppDrawer` (con cualquier sesion abierta) y espera a que cargue el documento del conductor, para compararlo con el guardado y no escribir de mas.
+  - El sonido con la app abierta suena una sola vez por solicitud (se recuerda el id de la ultima que sono).
+  - Al tocar la notificacion la app va a la seccion Inicio; la solicitud aparece por Firestore, porque el modal se muestra sobre cualquier pantalla de Inicio. Con la app cerrada, la disponibilidad se restaura desde AsyncStorage y el listener se reactiva.
+  - El simulador envia la notificacion con `channelId: 'trip_requests'`, prioridad alta y `ttl` igual al tiempo despues del cual la app ya no muestra la solicitud (2 min, `STALE_REQUEST_MS`, importado de la app). Si el envio falla, el viaje queda creado igual. Reutiliza `formatCOP` de la app para el texto.
+  - `index.js` registra `setBackgroundMessageHandler` vacio antes de montar la app, como exige RNFirebase.
+  - No se agregaron dependencias en esta fase: se instalaron todas en la Fase A.
+  - Correccion de compilacion (prompt: "La compilacion fallo por un conflicto en el AndroidManifest: el meta-data com.google.firebase.messaging.default_notification_channel_id lo definen a la vez expo-notifications (defaultChannel "trip_requests" en app.json) y @react-native-firebase/messaging (valor vacio). Quita "defaultChannel" del plugin de expo-notifications en app.json; el simulador ya envia channelId 'trip_requests' en cada mensaje. No edites android/ a mano. Luego regenera con npx expo prebuild --clean --platform android."): se quito `defaultChannel` del plugin de expo-notifications en `app.json` (decision del agente en la Fase A que causo el conflicto). No hace falta, porque cada mensaje del simulador lleva `channelId: 'trip_requests'`. Se regenero `android/` con `npx expo prebuild --clean --platform android` sin editarlo a mano, y se comprobo que el manifiesto de la app ya no declara ese meta-data y que `new_request.mp3` quedo en `res/raw`.
+- Archivos y commit: index.js, src/services/firebase.js, src/services/notifications.js, src/services/driverStatus.js, src/hooks/usePushToken.js, src/hooks/useOpenFromNotification.js, src/context/TripContext.js, src/navigation/AppDrawer.js, src/navigation/HomeStack.js, backend/scripts/simulatePassenger.js — e79871d
+- Verificacion: npm test (84 tests), bundle de Android y npx expo-doctor (20/20) sin errores. Probado en el emulador Pixel_7a: al entrar se acepta el permiso de notificaciones y el fcmToken queda guardado en Firestore. Con npm run simulate llega la notificacion "Nueva solicitud de viaje" con el sonido personalizado new_request.mp3. Hubo que regenerar la carpeta android porque los cambios de app.json no se aplicaban, y quitar defaultChannel de expo-notifications por un conflicto en el AndroidManifest con React Native Firebase.
+- Aprendizaje: Aprendí que cuando cambio plugins en app.json la carpeta android no se actualiza sola si ya existe, entonces hay que regenerarla, y que Android no deja cambiar el sonido de un canal de notificaciones ya creado, por eso tocó desinstalar la app. También entendí que dos librerías pueden chocar si configuran la misma cosa, como pasó con el canal por defecto, y que la solución fue quitar lo que sobraba. Y me quedó claro cómo funcionan las notificaciones: con la app abierta el sonido lo pone la app, y en segundo plano lo pone el canal de Android que manda el backend.

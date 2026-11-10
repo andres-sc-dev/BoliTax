@@ -7,6 +7,8 @@
       "Read(./google-services.json)",
       "Read(./.env)",
       "Read(./.env.local)",
+      "Read(./backend/.env)",
+      "Read(./backend/serviceAccountKey.json)",
       "Read(./backend/.env)"
     ]
   }

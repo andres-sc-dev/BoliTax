@@ -32,3 +32,17 @@ export { setDoc } from '@react-native-firebase/firestore';
 // AI-assisted: see docs/AI_LOG.md #8
 // actualización parcial del documento del conductor (ubicación y disponibilidad)
 export { updateDoc } from '@react-native-firebase/firestore';
+
+// AI-assisted: see docs/AI_LOG.md #10
+// consultas y transacciones sobre la colección trips (solicitudes y viaje activo)
+export { query, where, runTransaction } from '@react-native-firebase/firestore';
+
+// AI-assisted: see docs/AI_LOG.md #11
+// Cloud Messaging: token del dispositivo y apertura de la app desde una notificación
+export {
+  getToken,
+  onTokenRefresh,
+  getInitialNotification,
+  onNotificationOpenedApp,
+  setBackgroundMessageHandler,
+} from '@react-native-firebase/messaging';

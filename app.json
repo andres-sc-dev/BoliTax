@@ -48,7 +48,23 @@
         {
           "locationWhenInUsePermission": "BoliTax usa tu ubicación para mostrarte en el mapa y enviarla a los pasajeros mientras estás Disponible."
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/new_request.mp3"
+          ]
+        }
+      ],
+      "expo-asset"
     ]
   }
 }

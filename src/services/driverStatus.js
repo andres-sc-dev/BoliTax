@@ -15,3 +15,9 @@ export function updateDriverLocation(uid, { lat, lng }) {
     locationUpdatedAt: serverTimestamp(),
   });
 }
+
+// AI-assisted: see docs/AI_LOG.md #11
+// guarda el token FCM del dispositivo para que el backend pueda enviarle notificaciones
+export function saveFcmToken(uid, fcmToken) {
+  return updateDoc(doc(db, 'drivers', uid), { fcmToken, fcmTokenUpdatedAt: serverTimestamp() });
+}
