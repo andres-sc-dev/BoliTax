@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import EarningsStrip from '../components/EarningsStrip';
 import LeafletMap from '../components/LeafletMap';
 import { useAuth } from '../context/AuthContext';
 import { useAvailability } from '../context/AvailabilityContext';
@@ -99,24 +100,31 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <LeafletMap center={location} markers={[driverMarker]} />
 
-      {/* AI-assisted: see docs/AI_LOG.md #10 — acceso al viaje activo */}
-      {currentTrip ? (
-        <View style={styles.tripPanel}>
-          <Text style={styles.tripText}>
-            {tripCompleted
-              ? `Terminaste el viaje con ${currentTrip.passengerName}.`
-              : `Tienes un viaje en curso con ${currentTrip.passengerName}.`}
-          </Text>
-          <Pressable
-            style={styles.tripButton}
-            onPress={() => navigation.navigate(tripCompleted ? 'TripSummary' : 'TripInProgress')}
-          >
-            <Text style={styles.buttonText}>
-              {tripCompleted ? 'Ver resumen del viaje' : 'Ver viaje en curso'}
+      {/* AI-assisted: see docs/AI_LOG.md #16
+          contenedor inferior: franja de ganancias y acceso al viaje activo. Va abajo para no
+          tapar la tarjeta superior (interruptor Disponible y aviso de cuenta pendiente). */}
+      <View style={styles.bottomArea}>
+        <EarningsStrip />
+
+        {/* AI-assisted: see docs/AI_LOG.md #10 — acceso al viaje activo */}
+        {currentTrip ? (
+          <View style={styles.tripPanel}>
+            <Text style={styles.tripText}>
+              {tripCompleted
+                ? `Terminaste el viaje con ${currentTrip.passengerName}.`
+                : `Tienes un viaje en curso con ${currentTrip.passengerName}.`}
             </Text>
-          </Pressable>
-        </View>
-      ) : null}
+            <Pressable
+              style={styles.tripButton}
+              onPress={() => navigation.navigate(tripCompleted ? 'TripSummary' : 'TripInProgress')}
+            >
+              <Text style={styles.buttonText}>
+                {tripCompleted ? 'Ver resumen del viaje' : 'Ver viaje en curso'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
 
       {/* AI-assisted: see docs/AI_LOG.md #8 */}
       <View style={styles.card}>
@@ -202,12 +210,16 @@ const styles = StyleSheet.create({
   noticeText: { fontSize: 13, color: '#5c3b00' },
   hint: { marginTop: 8, fontSize: 13, color: '#555' },
   errorText: { marginTop: 8, fontSize: 13, color: '#c62828' },
-  // AI-assisted: see docs/AI_LOG.md #10
-  tripPanel: {
+  // AI-assisted: see docs/AI_LOG.md #16 — franja de ganancias y panel del viaje, apilados abajo
+  bottomArea: {
     position: 'absolute',
     bottom: 24,
     left: 12,
     right: 12,
+  },
+  // AI-assisted: see docs/AI_LOG.md #10
+  tripPanel: {
+    marginTop: 8,
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
