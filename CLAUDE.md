@@ -10,11 +10,11 @@
 - Expo con JavaScript. No usar TypeScript.
 - Navegacion: React Navigation (Stack para el flujo del viaje, Tabs para el registro, Drawer para perfil, historial, ganancias y configuracion). No usar Expo Router.
 - Autenticacion y base de datos: Firebase Auth + Firestore.
-- Mapas: Leaflet con tiles de OpenStreetMap dentro de `react-native-webview` (sin Google Maps ni Google Cloud). `react-native-webview` tambien se usara para el Checkout Pro de Mercado Pago.
+- Mapas: Leaflet con tiles de OpenStreetMap dentro de `react-native-webview` (sin Google Maps ni Google Cloud). `react-native-webview` tambien se usa para el Web Checkout de Wompi.
 - Rutas, distancia y duracion: OSRM (servidor publico `router.project-osrm.org`), en lugar de Directions / Distance Matrix.
 - Coordenadas a direccion: Nominatim (maximo 1 peticion por segundo, con User-Agent `BoliTax-app-universitaria`).
 - Ubicacion: `expo-location`.
-- Pagos: Mercado Pago Checkout Pro en modo prueba.
+- Pagos: Wompi (pasarela colombiana de Bancolombia), Web Checkout en modo Sandbox, en lugar de Mercado Pago (el PDF lo recomienda, pero la profesora acepta cualquier pasarela que cumpla el flujo obligatorio de la seccion 4). Metodos de pago del viaje: `wompi` y `cash`. El campo `mercadoPagoEmail` del registro conserva su nombre en Firestore; su etiqueta visible es "Correo para recibir pagos".
 - Backend: Node + Express en la carpeta `backend/`.
 - Imagenes: Cloudinary.
 - No agregar librerias fuera de esta lista sin preguntar primero.
@@ -45,7 +45,7 @@
 
 ## Seguridad
 - Nunca escribas llaves, tokens ni contraseñas directamente en el codigo.
-- Secretos (como el `access_token` de Mercado Pago o el API secret de Cloudinary) van SOLO en `backend/.env`. Nunca en la app.
+- Secretos (como la llave privada y el secreto de integridad de Wompi o el API secret de Cloudinary) van SOLO en `backend/.env`. Nunca en la app.
 - Llaves publicas de cliente (configuracion de Firebase, API key de Google Maps) van en el `.env` de la app como variables `EXPO_PUBLIC_*`, nunca escritas en el codigo.
 - Cada vez que se agregue una variable nueva, actualiza el `.env.example` correspondiente con el nombre de la variable y sin valor.
 - No leas ni muestres el contenido de ningun archivo `.env`.

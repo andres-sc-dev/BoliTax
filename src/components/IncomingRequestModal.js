@@ -8,7 +8,8 @@ import { formatCOP } from '../utils/formatCurrency';
 import { REQUEST_TIMEOUT_SECONDS, secondsLeft } from '../utils/tripRequest';
 
 const CATEGORY_LABELS = { economy: 'Económico', xl: 'XL', premium: 'Premium' };
-const PAYMENT_LABELS = { mercadopago: 'Mercado Pago', cash: 'Efectivo', stripe: 'Stripe' };
+// AI-assisted: see docs/AI_LOG.md #14 — Wompi reemplaza a Mercado Pago
+const PAYMENT_LABELS = { wompi: 'Wompi (tarjeta)', cash: 'Efectivo' };
 
 export default function IncomingRequestModal({ request, onAccept, onReject }) {
   // momento en que apareció la solicitud: el temporizador cuenta desde aquí
