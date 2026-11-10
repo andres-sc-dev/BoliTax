@@ -8,6 +8,7 @@ import {
 } from '@react-navigation/drawer';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { usePushToken } from '../hooks/usePushToken';
 import EarningsScreen from '../screens/EarningsScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -37,6 +38,12 @@ function DrawerContent(props) {
 }
 
 export default function AppDrawer() {
+  // AI-assisted: see docs/AI_LOG.md #11
+  // registra el token FCM con cualquier sesión abierta; espera a que cargue el documento
+  // del conductor para comparar con el token ya guardado y no escribir de más
+  const { user, driver } = useAuth();
+  usePushToken({ uid: driver ? user?.uid : null, savedToken: driver?.fcmToken });
+
   return (
     <Drawer.Navigator drawerContent={(props) => <DrawerContent {...props} />}>
       <Drawer.Screen name="Home" component={HomeStack} options={{ title: 'Inicio' }} />

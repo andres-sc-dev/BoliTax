@@ -442,3 +442,27 @@ Herramientas usadas:
 - Archivos y commit: backend/package.json, backend/package-lock.json, backend/.env.example, backend/src/server.js, backend/src/firebaseAdmin.js, backend/src/geo.js, backend/scripts/simulatePassenger.js, src/utils/calculateFare.js, src/services/firebase.js, src/services/trips.js, src/hooks/useTripRequests.js, src/context/TripContext.js, src/components/IncomingRequestModal.js, src/screens/TripInProgressScreen.js, src/screens/HomeScreen.js, src/navigation/HomeStack.js, src/utils/tripRequest.js, src/utils/formatCurrency.js, src/utils/__tests__/tripRequest.test.js, app.json, package.json, package-lock.json — [PENDIENTE]
 - Verificacion: `npm test` (84 tests, 8 suites), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores; `GET /health` responde `{"status":"ok"}`. [PENDIENTE: simulador y solicitud en el emulador Pixel_7a]
 - Aprendizaje: [PENDIENTE]
+
+---
+
+### Entrada #11
+- Fecha: 2026-11-09
+- Integrante: Andrés Salazar Castrillón
+- Herramienta: Claude Code
+- Objetivo: Modulo 4, Fase B: notificacion push (FCM) y sonido cuando llega una solicitud de viaje, con la app abierta, en segundo plano o cerrada (secciones 3 y 7 del documento)
+- Prompt: "Fase A probada: el modal aparece, el temporizador rechaza por timeout, Rechazar y Aceptar funcionan. Continua con la Fase B." (el detalle de la Fase B esta en el prompt de la Entrada #10)
+- Resumen de la respuesta: El agente creo el servicio `notifications.js` (canal de Android `trip_requests` con el sonido y permiso de notificaciones), el hook `usePushToken` (token FCM en `drivers/{uid}.fcmToken`, solo si cambio, y renovacion con `onTokenRefresh`), el hook `useOpenFromNotification` (abrir la seccion Inicio al tocar la notificacion), el sonido con expo-audio en `TripContext` cuando aparece una solicitud nueva, el manejador de mensajes en segundo plano en `index.js` y el envio de la notificacion desde el simulador.
+- Que se uso / modifico / descarto:
+  - Reparto de librerias: `expo-notifications` solo crea el canal y pide el permiso de Android 13+; `@react-native-firebase/messaging` da el token y detecta la apertura desde la notificacion. Con la app abierta no se usa FCM: la solicitud llega por Firestore y el sonido lo reproduce expo-audio, asi no suena dos veces.
+  - En Android 8+ el sonido se define en el canal, no en cada notificacion. El canal usa `new_request.mp3`, que el plugin de expo-notifications copio a `res/raw` en la recompilacion de la Fase A. Android no permite cambiar el sonido de un canal ya creado.
+  - El orden importa: primero se crea el canal y despues se pide el permiso, porque en Android 13+ el dialogo no aparece si no existe ningun canal.
+  - El token se registra en `AppDrawer` (con cualquier sesion abierta) y espera a que cargue el documento del conductor, para compararlo con el guardado y no escribir de mas.
+  - El sonido con la app abierta suena una sola vez por solicitud (se recuerda el id de la ultima que sono).
+  - Al tocar la notificacion la app va a la seccion Inicio; la solicitud aparece por Firestore, porque el modal se muestra sobre cualquier pantalla de Inicio. Con la app cerrada, la disponibilidad se restaura desde AsyncStorage y el listener se reactiva.
+  - El simulador envia la notificacion con `channelId: 'trip_requests'`, prioridad alta y `ttl` igual al tiempo despues del cual la app ya no muestra la solicitud (2 min, `STALE_REQUEST_MS`, importado de la app). Si el envio falla, el viaje queda creado igual. Reutiliza `formatCOP` de la app para el texto.
+  - `index.js` registra `setBackgroundMessageHandler` vacio antes de montar la app, como exige RNFirebase.
+  - No se agregaron dependencias en esta fase: se instalaron todas en la Fase A.
+  - Correccion de compilacion (prompt: "La compilacion fallo por un conflicto en el AndroidManifest: el meta-data com.google.firebase.messaging.default_notification_channel_id lo definen a la vez expo-notifications (defaultChannel "trip_requests" en app.json) y @react-native-firebase/messaging (valor vacio). Quita "defaultChannel" del plugin de expo-notifications en app.json; el simulador ya envia channelId 'trip_requests' en cada mensaje. No edites android/ a mano. Luego regenera con npx expo prebuild --clean --platform android."): se quito `defaultChannel` del plugin de expo-notifications en `app.json` (decision del agente en la Fase A que causo el conflicto). No hace falta, porque cada mensaje del simulador lleva `channelId: 'trip_requests'`. Se regenero `android/` con `npx expo prebuild --clean --platform android` sin editarlo a mano, y se comprobo que el manifiesto de la app ya no declara ese meta-data y que `new_request.mp3` quedo en `res/raw`.
+- Archivos y commit: index.js, src/services/firebase.js, src/services/notifications.js, src/services/driverStatus.js, src/hooks/usePushToken.js, src/hooks/useOpenFromNotification.js, src/context/TripContext.js, src/navigation/AppDrawer.js, src/navigation/HomeStack.js, backend/scripts/simulatePassenger.js — [PENDIENTE]
+- Verificacion: `npm test` (84 tests), `npx expo export --platform android` y `npx expo-doctor` (20/20) sin errores; `node --check` del simulador y los imports compartidos (`STALE_REQUEST_MS`, `formatCOP`) cargan desde Node. [PENDIENTE: notificacion y sonido en el emulador Pixel_7a]
+- Aprendizaje: [PENDIENTE]

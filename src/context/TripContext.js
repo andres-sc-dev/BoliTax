@@ -2,7 +2,8 @@
 // Viaje activo y solicitud pendiente del conductor (useContext, como exige la sección 3 del PDF).
 // Vive en HomeStack, dentro de AvailabilityProvider, para que todas las pantallas del viaje
 // compartan el mismo estado.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useAudioPlayer } from 'expo-audio';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useTripRequests } from '../hooks/useTripRequests';
 import { collection, db, onSnapshot, query, where } from '../services/firebase';
 import { acceptTrip, rejectTrip } from '../services/trips';
@@ -51,6 +52,22 @@ export function TripProvider({ children }) {
     () => (activeTrip ? null : pickNextRequest(requests, Date.now())),
     [requests, activeTrip],
   );
+
+  // AI-assisted: see docs/AI_LOG.md #11
+  // sonido con la app abierta: suena una vez por cada solicitud nueva que se muestra
+  // (en segundo plano suena la notificación del canal "trip_requests")
+  const alertPlayer = useAudioPlayer(require('../../assets/sounds/new_request.mp3'));
+  const lastAlertedIdRef = useRef(null);
+  useEffect(() => {
+    const requestId = pendingRequest?.id;
+    if (!requestId || requestId === lastAlertedIdRef.current) return;
+    lastAlertedIdRef.current = requestId;
+    // se vuelve al inicio del audio por si ya había sonado antes
+    alertPlayer
+      .seekTo(0)
+      .catch(() => {})
+      .finally(() => alertPlayer.play());
+  }, [pendingRequest?.id, alertPlayer]);
 
   // manejadores con useCallback (sección 3 del PDF)
   const acceptRequest = useCallback((tripId) => acceptTrip(tripId), []);

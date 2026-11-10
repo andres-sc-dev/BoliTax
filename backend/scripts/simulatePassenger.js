@@ -11,8 +11,10 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { PRICING } from '../../src/config/pricing.js';
 import { calculateFare } from '../../src/utils/calculateFare.js';
+import { formatCOP } from '../../src/utils/formatCurrency.js';
 import { formatShortAddress, parseOsrmRoute } from '../../src/utils/routeParsers.js';
-import { db } from '../src/firebaseAdmin.js';
+import { STALE_REQUEST_MS } from '../../src/utils/tripRequest.js';
+import { db, messaging } from '../src/firebaseAdmin.js';
 import { MEDELLIN_CENTER, randomPointNear } from '../src/geo.js';
 
 const USER_AGENT = 'BoliTax-app-universitaria';
@@ -152,6 +154,39 @@ async function main() {
   console.log(`  Ruta:       ${route.distanceKm} km · ${route.durationMin} min`);
   console.log(`  Categoría:  ${category} · Pago: ${paymentMethod}`);
   console.log(`  Tarifa:     $${fare} · Comisión: $${commission} · Ganancia: $${driverEarnings}`);
+
+  // AI-assisted: see docs/AI_LOG.md #11
+  await sendTripNotification(driver, ref.id, trip);
+}
+
+// AI-assisted: see docs/AI_LOG.md #11
+// Notificación push al conductor. Usa el canal "trip_requests" que crea la app: en Android 8+
+// el sonido (new_request.mp3) lo define ese canal. Si falla, el viaje igual queda creado
+// y la app lo recibe por Firestore.
+async function sendTripNotification(driver, tripId, trip) {
+  if (!driver.fcmToken) {
+    console.log('  Push:       el conductor no tiene fcmToken; no se envió notificación.');
+    return;
+  }
+  try {
+    await messaging.send({
+      token: driver.fcmToken,
+      notification: {
+        title: 'Nueva solicitud de viaje',
+        body: `${trip.origin.address} → ${trip.destination.address} · ${formatCOP(trip.fare)}`,
+      },
+      android: {
+        priority: 'high',
+        // pasado este tiempo la solicitud ya no se muestra en la app; no tiene sentido entregarla
+        ttl: STALE_REQUEST_MS,
+        notification: { channelId: 'trip_requests', sound: 'new_request' },
+      },
+      data: { type: 'trip_request', tripId },
+    });
+    console.log('  Push:       notificación enviada.');
+  } catch (error) {
+    console.warn(`  Push:       no se pudo enviar (${error.code ?? error.message}).`);
+  }
 }
 
 main()

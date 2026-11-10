@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 import IncomingRequestModal from '../components/IncomingRequestModal';
 import { AvailabilityProvider } from '../context/AvailabilityContext';
 import { TripProvider, useTrip } from '../context/TripContext';
+import { useOpenFromNotification } from '../hooks/useOpenFromNotification';
 import HomeScreen from '../screens/HomeScreen';
 import TripInProgressScreen from '../screens/TripInProgressScreen';
 
@@ -44,6 +45,12 @@ export default function HomeStack({ navigation }) {
   // HomeStack es la pantalla "Inicio" del Drawer: useIsFocused aquí es true mientras se vea
   // cualquier pantalla de este Stack, y false al ir a Historial, Ganancias o Perfil
   const sectionFocused = useIsFocused();
+
+  // AI-assisted: see docs/AI_LOG.md #11
+  // al abrir la app desde la notificación se lleva al conductor a la sección Inicio,
+  // donde la solicitud aparece por Firestore (el modal se muestra sobre cualquier pantalla de Inicio)
+  const openHomeSection = useCallback(() => navigation.navigate('Home'), [navigation]);
+  useOpenFromNotification(openHomeSection);
 
   return (
     <AvailabilityProvider sectionFocused={sectionFocused}>

@@ -61,8 +61,7 @@
         {
           "sounds": [
             "./assets/sounds/new_request.mp3"
-          ],
-          "defaultChannel": "trip_requests"
+          ]
         }
       ],
       "expo-asset"
