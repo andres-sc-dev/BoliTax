@@ -9,6 +9,7 @@ import {
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { EarningsProvider } from '../context/EarningsContext';
+import { useLanguage } from '../context/LanguageContext';
 import { usePushToken } from '../hooks/usePushToken';
 import EarningsScreen from '../screens/EarningsScreen';
 // AI-assisted: see docs/AI_LOG.md #17 — Historial ahora es un Stack (lista y detalle)
@@ -21,6 +22,8 @@ const Drawer = createDrawerNavigator();
 // contenido del menú lateral: correo del conductor, las secciones y el botón de cerrar sesión
 function DrawerContent(props) {
   const { user, signOut } = useAuth();
+  // AI-assisted: see docs/AI_LOG.md #18 — textos traducidos con el diccionario propio
+  const { t } = useLanguage();
 
   const handleSignOut = () => {
     // al cerrar sesión, AuthContext pone user en null y RootNavigator vuelve al Login
@@ -34,7 +37,7 @@ function DrawerContent(props) {
         <Text style={styles.email}>{user?.email}</Text>
       </View>
       <DrawerItemList {...props} />
-      <DrawerItem label="Cerrar sesión" onPress={handleSignOut} labelStyle={styles.signOut} />
+      <DrawerItem label={t('drawer.signOut')} onPress={handleSignOut} labelStyle={styles.signOut} />
     </DrawerContentScrollView>
   );
 }
@@ -45,19 +48,29 @@ export default function AppDrawer() {
   // del conductor para comparar con el token ya guardado y no escribir de más
   const { user, driver } = useAuth();
   usePushToken({ uid: driver ? user?.uid : null, savedToken: driver?.fcmToken });
+  // AI-assisted: see docs/AI_LOG.md #18 — títulos del menú en el idioma elegido
+  const { t } = useLanguage();
 
   return (
     // AI-assisted: see docs/AI_LOG.md #16
     // useEarnings se ejecuta una sola vez aquí y lo comparten Ganancias e Inicio
     <EarningsProvider>
       <Drawer.Navigator drawerContent={(props) => <DrawerContent {...props} />}>
-        <Drawer.Screen name="Home" component={HomeStack} options={{ title: 'Inicio' }} />
-        <Drawer.Screen name="History" component={HistoryStack} options={{ title: 'Historial' }} />
-        <Drawer.Screen name="Earnings" component={EarningsScreen} options={{ title: 'Ganancias' }} />
+        <Drawer.Screen name="Home" component={HomeStack} options={{ title: t('drawer.home') }} />
+        <Drawer.Screen
+          name="History"
+          component={HistoryStack}
+          options={{ title: t('drawer.history') }}
+        />
+        <Drawer.Screen
+          name="Earnings"
+          component={EarningsScreen}
+          options={{ title: t('drawer.earnings') }}
+        />
         <Drawer.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: 'Perfil y configuración' }}
+          options={{ title: t('drawer.profile') }}
         />
       </Drawer.Navigator>
     </EarningsProvider>
