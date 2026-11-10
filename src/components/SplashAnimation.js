@@ -10,13 +10,16 @@
 // Rediseño "Damero audaz": logo "B", wordmark BoliTAX y taxi nuevo, todo CENTRADO en vertical y
 // horizontal sobre el fondo oscuro, con una franja de damero como "calle". Al terminar el
 // recorrido la composición queda quieta 1,7 s antes de desvanecerse.
+// AI-assisted: see docs/AI_LOG.md #22
+// Marca final: el ícono (igual al de la splash nativa, para que el paso sea continuo) y el
+// logotipo horizontal "BoliTAX" con su damero. La animación no cambió.
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { spacing } from '../theme';
 import BrandLogo from './brand/BrandLogo';
+import Logotype from './brand/Logotype';
 import { SPLASH_BACKGROUND } from './brand/brandColors';
 import TaxiIcon, { TAXI_WIDTH } from './brand/TaxiIcon';
-import Wordmark from './brand/Wordmark';
 import CheckerStrip from './ui/CheckerStrip';
 
 // cuánto se pasa el taxi al frenar antes de rebotar (en puntos)
@@ -118,8 +121,8 @@ export default function SplashAnimation({ onReady, onFinish }) {
         <Animated.View
           style={[styles.brand, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}
         >
-          <BrandLogo variant="onDark" size={112} />
-          <Wordmark variant="onDark" size={42} style={styles.wordmark} />
+          <BrandLogo size={104} />
+          <Logotype variant="onDark" width={240} style={styles.wordmark} />
         </Animated.View>
         <Animated.View style={[styles.taxi, { transform: [{ translateX: taxiX }, { rotate: tilt }] }]}>
           <TaxiIcon />
@@ -142,7 +145,7 @@ const styles = StyleSheet.create({
   },
   composition: { alignItems: 'center' },
   brand: { alignItems: 'center' },
-  wordmark: { marginTop: spacing.md },
+  wordmark: { marginTop: spacing.lg },
   taxi: { marginTop: spacing.xxl },
   road: { width: 240, borderRadius: 2, overflow: 'hidden', marginTop: 2 },
 });

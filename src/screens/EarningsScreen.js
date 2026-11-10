@@ -2,27 +2,53 @@
 // Ganancias (sección 5 del PDF): para hoy, la semana y el mes muestra número de viajes,
 // total facturado, comisiones, propinas, ganancia neta y promedio por viaje, más el saldo.
 // Los datos vienen de useEarnings (compartido por EarningsContext).
+// AI-assisted: see docs/AI_LOG.md #22
+// Rediseño "Damero audaz" (mismo estilo del registro): encabezado amarillo con el botón de
+// menú, tarjeta de saldo oscura con borde amarillo y el monto en verde o rojo, chips de
+// periodo y tarjetas oscuras. Textos traducidos. La lógica no cambió.
+import { DrawerActions } from '@react-navigation/native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Card, Chip, HeaderIconButton, Screen, YellowHeader } from '../components/ui';
 import { useEarningsData } from '../context/EarningsContext';
+import { useLanguage } from '../context/LanguageContext';
+import { colors, spacing, typography } from '../theme';
 import { formatCOP } from '../utils/formatCurrency';
 
-const PERIODS = [
-  { key: 'today', label: 'Hoy' },
-  { key: 'week', label: 'Semana' },
-  { key: 'month', label: 'Mes' },
-];
+const PERIODS = ['today', 'week', 'month'];
 
-export default function EarningsScreen() {
+export default function EarningsScreen({ navigation }) {
   const { loading, error, periods, balance } = useEarningsData();
   const [period, setPeriod] = useState('today');
+  // AI-assisted: see docs/AI_LOG.md #22
+  const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
+
+  const header = (
+    <YellowHeader
+      safeTop
+      title={t('earnings.title')}
+      subtitle={t('earnings.subtitle')}
+      left={
+        <HeaderIconButton
+          icon="menu"
+          label={t('common.openMenu')}
+          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+        />
+      }
+    />
+  );
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.muted}>Cargando tus ganancias…</Text>
-      </View>
+      <Screen statusBar="dark">
+        {header}
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.muted}>{t('earnings.loading')}</Text>
+        </View>
+      </Screen>
     );
   }
 
@@ -30,87 +56,73 @@ export default function EarningsScreen() {
   const balanceNegative = balance < 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* saldo del conductor (sección 5): verde si es positivo, rojo si es negativo */}
-      <View style={[styles.balanceCard, balanceNegative ? styles.balanceRed : styles.balanceGreen]}>
-        <Text style={styles.balanceLabel}>Tu saldo</Text>
-        <Text style={styles.balanceValue}>{formatCOP(balance)}</Text>
-        <Text style={styles.balanceNote}>
-          Suma tu ganancia neta de los viajes pagados con Wompi y resta la comisión de los viajes
-          pagados en efectivo, porque ese dinero ya lo recibiste directamente. Puede quedar en
-          negativo si cobras mucho en efectivo.
-        </Text>
-      </View>
+    <Screen statusBar="dark">
+      {header}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]}
+      >
+        {/* saldo del conductor (sección 5): verde si es positivo, rojo si es negativo */}
+        <Card highlight style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>{t('earnings.balance')}</Text>
+          <Text style={[styles.balanceValue, balanceNegative ? styles.negative : styles.positive]}>
+            {formatCOP(balance)}
+          </Text>
+          <Text style={styles.balanceNote}>{t('earnings.balanceNote')}</Text>
+        </Card>
 
-      {/* selector de periodo */}
-      <View style={styles.tabs}>
-        {PERIODS.map((item) => (
-          <Pressable
-            key={item.key}
-            style={[styles.tab, period === item.key && styles.tabActive]}
-            onPress={() => setPeriod(item.key)}
-          >
-            <Text style={[styles.tabText, period === item.key && styles.tabTextActive]}>
-              {item.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        {/* selector de periodo */}
+        <View style={styles.chips}>
+          {PERIODS.map((key) => (
+            <Chip
+              key={key}
+              label={t(`earnings.period.${key}`)}
+              active={period === key}
+              onPress={() => setPeriod(key)}
+            />
+          ))}
+        </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{t('earnings.loadError')}</Text> : null}
 
-      <View style={styles.grid}>
-        <StatCard label="Viajes" value={String(totals.count)} />
-        <StatCard label="Ganancia neta" value={formatCOP(totals.net)} highlight />
-        <StatCard label="Total facturado" value={formatCOP(totals.billed)} />
-        <StatCard label="Comisiones" value={`- ${formatCOP(totals.commissions)}`} />
-        <StatCard label="Propinas" value={formatCOP(totals.tips)} />
-        <StatCard label="Promedio por viaje" value={formatCOP(totals.average)} />
-      </View>
+        <View style={styles.grid}>
+          <StatCard label={t('earnings.trips')} value={String(totals.count)} />
+          <StatCard label={t('earnings.net')} value={formatCOP(totals.net)} highlight />
+          <StatCard label={t('earnings.billed')} value={formatCOP(totals.billed)} />
+          <StatCard label={t('earnings.commissions')} value={`- ${formatCOP(totals.commissions)}`} />
+          <StatCard label={t('earnings.tips')} value={formatCOP(totals.tips)} />
+          <StatCard label={t('earnings.average')} value={formatCOP(totals.average)} />
+        </View>
 
-      <Text style={styles.note}>
-        Se cuentan los viajes finalizados, aunque su pago siga pendiente. El saldo solo cuenta
-        los viajes ya pagados.
-      </Text>
-    </ScrollView>
+        <Text style={styles.note}>{t('earnings.note')}</Text>
+      </ScrollView>
+    </Screen>
   );
 }
 
 function StatCard({ label, value, highlight }) {
   return (
-    <View style={styles.card}>
+    <Card style={styles.statCard}>
       <Text style={styles.cardLabel}>{label}</Text>
-      <Text style={[styles.cardValue, highlight && styles.cardHighlight]}>{value}</Text>
-    </View>
+      <Text style={[styles.cardValue, highlight && styles.positive]}>{value}</Text>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 32, backgroundColor: '#fff', flexGrow: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  muted: { color: '#666', marginTop: 8 },
-  balanceCard: { borderRadius: 14, padding: 16 },
-  balanceGreen: { backgroundColor: '#e8f5e9' },
-  balanceRed: { backgroundColor: '#fdecea' },
-  balanceLabel: { fontSize: 14, color: '#444' },
-  balanceValue: { fontSize: 32, fontWeight: '700', marginVertical: 4, color: '#111' },
-  balanceNote: { fontSize: 13, color: '#555', lineHeight: 18 },
-  tabs: { flexDirection: 'row', backgroundColor: '#f0f0f0', borderRadius: 10, marginTop: 20, padding: 4 },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  tabActive: { backgroundColor: '#111' },
-  tabText: { fontWeight: '600', color: '#444' },
-  tabTextActive: { color: '#fff' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 16 },
-  card: {
-    width: '48%',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  cardLabel: { fontSize: 13, color: '#666' },
-  cardValue: { fontSize: 20, fontWeight: '700', marginTop: 4, color: '#111' },
-  cardHighlight: { color: '#2e7d32' },
-  note: { fontSize: 13, color: '#777', marginTop: 4 },
-  error: { color: '#c62828', marginTop: 12, textAlign: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  muted: { ...typography.body, color: colors.textMuted, marginTop: spacing.md },
+  content: { paddingHorizontal: spacing.lg },
+  balanceCard: { marginTop: spacing.xl },
+  balanceLabel: { ...typography.label, color: colors.textMuted, textTransform: 'uppercase' },
+  balanceValue: { ...typography.display, marginVertical: spacing.xs },
+  positive: { color: colors.success },
+  negative: { color: colors.danger },
+  balanceNote: { ...typography.caption, color: colors.textMuted, lineHeight: 18 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xl },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  statCard: { width: '48%', marginTop: spacing.md, padding: spacing.md },
+  cardLabel: { ...typography.caption, color: colors.textMuted },
+  cardValue: { ...typography.amount, fontSize: 20, color: colors.text, marginTop: spacing.xs },
+  note: { ...typography.caption, color: colors.textMuted, marginTop: spacing.lg },
+  error: { ...typography.body, color: colors.danger, textAlign: 'center', marginTop: spacing.sm },
 });

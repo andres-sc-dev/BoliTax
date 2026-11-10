@@ -5,6 +5,8 @@ export { default as Button } from './Button';
 export { default as Card } from './Card';
 export { default as CheckerStrip } from './CheckerStrip';
 export { default as Chip } from './Chip';
+// AI-assisted: see docs/AI_LOG.md #22
+export { default as HeaderIconButton } from './HeaderIconButton';
 export { default as Input } from './Input';
 export { default as Screen } from './Screen';
 export { default as YellowHeader } from './YellowHeader';

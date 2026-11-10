@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TripPaymentPanel from '../components/TripPaymentPanel';
 import { Button, Card, Screen, YellowHeader } from '../components/ui';
 import { useTrip } from '../context/TripContext';
+// AI-assisted: see docs/AI_LOG.md #22 — textos traducidos
+import { useLanguage } from '../context/LanguageContext';
 import { colors, mapColors, radius, spacing, typography } from '../theme';
 import { formatCOP } from '../utils/formatCurrency';
 
@@ -25,6 +27,7 @@ export default function TripSummaryScreen({ navigation }) {
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   // AI-assisted: see docs/AI_LOG.md #21 — margen inferior para la barra de navegación
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   const goHome = () => navigation.navigate('HomeMain');
 
@@ -33,8 +36,8 @@ export default function TripSummaryScreen({ navigation }) {
     return (
       <Screen statusBar="light" style={styles.center}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.muted}>Cargando resumen del viaje…</Text>
-        <Button title="Volver al inicio" variant="ghost" onPress={goHome} />
+        <Text style={styles.muted}>{t('summary.loading')}</Text>
+        <Button title={t('summary.backHome')} variant="ghost" onPress={goHome} />
       </Screen>
     );
   }
@@ -47,7 +50,7 @@ export default function TripSummaryScreen({ navigation }) {
       await closeSummary(trip.id);
       goHome();
     } catch (closeError) {
-      setError(closeError.message ?? 'No se pudo cerrar el resumen.');
+      setError(closeError.message ?? t('summary.closeError'));
       setClosing(false);
     }
   };
@@ -62,9 +65,9 @@ export default function TripSummaryScreen({ navigation }) {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxl }]}
       >
         {/* AI-assisted: see docs/AI_LOG.md #21 — encabezado con la ganancia neta en grande */}
-        <YellowHeader title="Viaje finalizado" subtitle={trip.passengerName}>
+        <YellowHeader title={t('summary.title')} subtitle={trip.passengerName}>
           <View style={styles.hero}>
-            <Text style={styles.heroLabel}>Tu ganancia neta</Text>
+            <Text style={styles.heroLabel}>{t('summary.netEarnings')}</Text>
             <Text style={styles.heroAmount}>{formatCOP(trip.driverEarnings)}</Text>
           </View>
         </YellowHeader>
@@ -80,15 +83,15 @@ export default function TripSummaryScreen({ navigation }) {
           </Card>
 
           <Card>
-            <Text style={styles.cardTitle}>Detalle de la tarifa</Text>
-            <Row label="Tarifa final" value={formatCOP(trip.fare)} strong />
+            <Text style={styles.cardTitle}>{t('summary.fareDetail')}</Text>
+            <Row label={t('summary.finalFare')} value={formatCOP(trip.fare)} strong />
             <Row
-              label={`Comisión de la plataforma (${commissionPercent} %)`}
+              label={t('summary.commission', { percent: commissionPercent })}
               value={`- ${formatCOP(trip.commission)}`}
             />
-            <Row label="Propina" value={formatCOP(trip.tip ?? 0)} />
+            <Row label={t('summary.tip')} value={formatCOP(trip.tip ?? 0)} />
             <View style={styles.divider} />
-            <Row label="Tu ganancia neta" value={formatCOP(trip.driverEarnings)} highlight />
+            <Row label={t('summary.netEarnings')} value={formatCOP(trip.driverEarnings)} highlight />
           </Card>
 
           {/* AI-assisted: see docs/AI_LOG.md #17 — cobro reutilizable */}
@@ -101,7 +104,7 @@ export default function TripSummaryScreen({ navigation }) {
               pendiente (con confirmación), para no bloquear al conductor si Wompi o el backend fallan. */}
           {isPaid ? (
             <Button
-              title="Volver al inicio"
+              title={t('summary.backHome')}
               icon="home"
               onPress={handleClose}
               loading={closing}
@@ -109,18 +112,15 @@ export default function TripSummaryScreen({ navigation }) {
             />
           ) : confirmingLeave ? (
             <View style={styles.confirmBox}>
-              <Text style={styles.confirmText}>
-                El pago quedará pendiente y podrás cobrarlo más tarde desde el historial. Mientras
-                tanto seguirás recibiendo solicitudes.
-              </Text>
+              <Text style={styles.confirmText}>{t('summary.leaveWarning')}</Text>
               <Button
-                title="Volver sin cobrar"
+                title={t('summary.leaveWithoutCharging')}
                 variant="secondary"
                 onPress={handleClose}
                 loading={closing}
               />
               <Button
-                title="Cancelar"
+                title={t('common.cancel')}
                 variant="ghost"
                 compact
                 onPress={() => setConfirmingLeave(false)}
@@ -129,7 +129,7 @@ export default function TripSummaryScreen({ navigation }) {
             </View>
           ) : (
             <Button
-              title="Volver sin cobrar"
+              title={t('summary.leaveWithoutCharging')}
               variant="ghost"
               onPress={() => setConfirmingLeave(true)}
               style={styles.leaveButton}

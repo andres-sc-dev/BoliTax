@@ -3,22 +3,29 @@
 // (sección 3). La ubicación y la disponibilidad vienen de AvailabilityContext (HomeStack).
 // AI-assisted: see docs/AI_LOG.md #21
 // Rediseño "Damero audaz": mapa oscuro, óvalo amarillo con la ganancia neta de hoy arriba al
-// centro (abre Ganancias) y, abajo, el acceso al viaje activo y la tarjeta del interruptor.
+// centro (abre Ganancias) y, abajo, el acceso al viaje activo y la disponibilidad.
 // Se eliminó la franja plegable de ganancias. La lógica no cambió.
+// AI-assisted: see docs/AI_LOG.md #22
+// El Switch pasó a ser el botón principal AvailabilityButton (misma lógica) y los textos
+// salen del diccionario (es / en).
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Linking, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AvailabilityButton from '../components/AvailabilityButton';
 import EarningsPill from '../components/EarningsPill';
 import LeafletMap from '../components/LeafletMap';
 import { Button, Card, Screen } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useAvailability } from '../context/AvailabilityContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useTrip } from '../context/TripContext';
 import { colors, mapColors, radius, spacing, typography } from '../theme';
 
 export default function HomeScreen({ navigation }) {
   const { driver } = useAuth();
   const insets = useSafeAreaInsets();
+  // AI-assisted: see docs/AI_LOG.md #22
+  const { t } = useLanguage();
   // AI-assisted: see docs/AI_LOG.md #10
   // viaje activo: si existe, se muestra un acceso directo a "Viaje en curso"
   // AI-assisted: see docs/AI_LOG.md #13 — o al resumen, si el viaje ya terminó y no se cerró
@@ -42,7 +49,7 @@ export default function HomeScreen({ navigation }) {
     return (
       <CenterState>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.message}>Cargando…</Text>
+        <Text style={styles.message}>{t('common.loading')}</Text>
       </CenterState>
     );
   }
@@ -51,17 +58,15 @@ export default function HomeScreen({ navigation }) {
   if (permissionStatus === 'denied') {
     return (
       <CenterState icon="location-outline">
-        <Text style={styles.title}>Necesitamos tu ubicación</Text>
+        <Text style={styles.title}>{t('home.locationTitle')}</Text>
         <Text style={styles.message}>
-          BoliTax usa tu ubicación para mostrarte en el mapa y recibir solicitudes cercanas.
-          {canAskAgain
-            ? ' Toca Reintentar y elige "Mientras la app está en uso".'
-            : ' Activa el permiso de ubicación en los ajustes de la app y luego toca Reintentar.'}
+          {t('home.locationMessage')}{' '}
+          {canAskAgain ? t('home.locationRetryHint') : t('home.locationSettingsHint')}
         </Text>
         <View style={styles.actions}>
-          <Button title="Reintentar" icon="refresh" onPress={retry} />
+          <Button title={t('common.retry')} icon="refresh" onPress={retry} />
           <Button
-            title="Abrir ajustes"
+            title={t('home.openSettings')}
             icon="settings-outline"
             variant="secondary"
             onPress={() => Linking.openSettings()}
@@ -76,7 +81,7 @@ export default function HomeScreen({ navigation }) {
       <CenterState icon="alert-circle-outline" iconColor={colors.danger}>
         <Text style={styles.message}>{error}</Text>
         <View style={styles.actions}>
-          <Button title="Reintentar" icon="refresh" onPress={retry} />
+          <Button title={t('common.retry')} icon="refresh" onPress={retry} />
         </View>
       </CenterState>
     );
@@ -86,7 +91,7 @@ export default function HomeScreen({ navigation }) {
     return (
       <CenterState>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.message}>Obteniendo tu ubicación…</Text>
+        <Text style={styles.message}>{t('home.gettingLocation')}</Text>
       </CenterState>
     );
   }
@@ -94,7 +99,7 @@ export default function HomeScreen({ navigation }) {
   const driverMarker = {
     id: 'driver',
     ...location,
-    label: 'Tú',
+    label: t('map.you'),
     // AI-assisted: see docs/AI_LOG.md #8
     // AI-assisted: see docs/AI_LOG.md #21 — amarillo con aro si está Disponible, gris si no
     color: isAvailable ? mapColors.driver : mapColors.driverOffline,
@@ -130,66 +135,48 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Text style={styles.tripText}>
                 {tripCompleted
-                  ? `Terminaste el viaje con ${currentTrip.passengerName}.`
-                  : `Tienes un viaje en curso con ${currentTrip.passengerName}.`}
+                  ? t('home.tripFinished', { name: currentTrip.passengerName })
+                  : t('home.tripInProgress', { name: currentTrip.passengerName })}
               </Text>
             </View>
             <Button
-              title={tripCompleted ? 'Ver resumen del viaje' : 'Ver viaje en curso'}
+              title={tripCompleted ? t('home.viewSummary') : t('home.viewTrip')}
               icon={tripCompleted ? 'receipt-outline' : 'navigate'}
               onPress={() => navigation.navigate(tripCompleted ? 'TripSummary' : 'TripInProgress')}
             />
           </Card>
         ) : null}
 
-        {/* AI-assisted: see docs/AI_LOG.md #8 */}
-        <Card style={styles.floatingCard}>
-          <View style={styles.switchRow}>
-            <View style={styles.statusInfo}>
-              <View style={styles.statusLine}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    { backgroundColor: isAvailable ? colors.success : colors.textMuted },
-                  ]}
-                />
-                <Text style={[styles.statusText, isAvailable && styles.statusAvailable]}>
-                  {isAvailable ? 'Disponible' : 'No disponible'}
-                </Text>
-              </View>
-              <Text style={styles.hint}>
-                {isAvailable
-                  ? 'Tu ubicación se comparte mientras estés Disponible.'
-                  : 'Activa el interruptor para recibir solicitudes.'}
+        {/* AI-assisted: see docs/AI_LOG.md #8 — aviso si la cuenta no está aprobada */}
+        {!isApproved ? (
+          <View style={[styles.notice, styles.floatingCard]}>
+            <Ionicons name="time-outline" size={20} color={colors.warning} />
+            <View style={styles.noticeBody}>
+              <Text style={styles.noticeTitle}>
+                {driver.status === 'pending' ? t('home.pendingTitle') : t('home.disabledTitle')}
               </Text>
+              <Text style={styles.noticeText}>{t('home.pendingText')}</Text>
             </View>
-            <Switch
-              value={isAvailable}
-              onValueChange={setAvailable}
-              // solo una cuenta aprobada puede ponerse Disponible
-              disabled={!isApproved}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={isAvailable ? colors.onPrimary : colors.textMuted}
-              accessibilityLabel="Disponible"
-            />
           </View>
-          {!isApproved ? (
-            <View style={styles.notice}>
-              <Ionicons name="time-outline" size={20} color={colors.warning} />
-              <View style={styles.noticeBody}>
-                <Text style={styles.noticeTitle}>
-                  {driver.status === 'pending'
-                    ? 'Cuenta pendiente de aprobación'
-                    : 'Tu cuenta no está habilitada'}
-                </Text>
-                <Text style={styles.noticeText}>
-                  Podrás ponerte Disponible cuando tu cuenta sea aprobada.
-                </Text>
-              </View>
-            </View>
-          ) : null}
-          {trackingError ? <Text style={styles.errorText}>{trackingError}</Text> : null}
-        </Card>
+        ) : null}
+        {trackingError ? (
+          <View style={[styles.trackingError, styles.floatingCard]}>
+            <Text style={styles.errorText}>{trackingError}</Text>
+          </View>
+        ) : null}
+
+        {/* AI-assisted: see docs/AI_LOG.md #22
+            botón principal: misma lógica que el Switch (solo una cuenta aprobada puede
+            ponerse Disponible) */}
+        <View style={styles.availability}>
+          <AvailabilityButton
+            isAvailable={isAvailable}
+            disabled={!isApproved}
+            onToggle={setAvailable}
+            title={isAvailable ? t('home.available') : t('home.unavailable')}
+            hint={isAvailable ? t('home.availableHint') : t('home.unavailableHint')}
+          />
+        </View>
       </View>
     </Screen>
   );
@@ -247,18 +234,10 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   tripText: { ...typography.bodyStrong, color: colors.text, flex: 1 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statusInfo: { flex: 1, marginRight: spacing.md },
-  statusLine: { flexDirection: 'row', alignItems: 'center' },
-  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: spacing.sm },
-  statusText: { ...typography.subtitle, color: colors.textMuted },
-  statusAvailable: { color: colors.text },
-  hint: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   notice: {
     flexDirection: 'row',
-    marginTop: spacing.md,
-    backgroundColor: colors.warningSoft,
-    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.warning,
@@ -266,5 +245,13 @@ const styles = StyleSheet.create({
   noticeBody: { flex: 1, marginLeft: spacing.sm },
   noticeTitle: { ...typography.bodyStrong, color: colors.warning, marginBottom: 2 },
   noticeText: { ...typography.caption, color: colors.text },
-  errorText: { ...typography.caption, color: colors.danger, marginTop: spacing.sm },
+  trackingError: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  errorText: { ...typography.caption, color: colors.danger },
+  availability: { marginTop: spacing.md },
 });

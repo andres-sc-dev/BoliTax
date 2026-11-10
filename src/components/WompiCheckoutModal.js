@@ -13,10 +13,13 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-nat
 import { WebView } from 'react-native-webview';
 import { colors } from '../theme';
 import { getTransactionIdFromUrl, isRedirectUrl } from '../utils/wompiRedirect';
+// AI-assisted: see docs/AI_LOG.md #22 — textos traducidos
+import { useLanguage } from '../context/LanguageContext';
 import YellowHeader from './ui/YellowHeader';
 
 export default function WompiCheckoutModal({ checkoutUrl, redirectUrl, onRedirect, onClose }) {
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
   // evita avisar dos veces (onShouldStartLoadWithRequest y onNavigationStateChange)
   const handledRef = useRef(false);
 
@@ -37,8 +40,8 @@ export default function WompiCheckoutModal({ checkoutUrl, redirectUrl, onRedirec
       <View style={styles.container}>
         <YellowHeader
           safeTop
-          title="Pago con Wompi"
-          subtitle="Modo de prueba (Sandbox)"
+          title={t('wompi.title')}
+          subtitle={t('wompi.sandbox')}
           left={
             <View style={styles.badgeIcon}>
               <Ionicons name="card" size={20} color={colors.primary} />
@@ -49,7 +52,7 @@ export default function WompiCheckoutModal({ checkoutUrl, redirectUrl, onRedirec
               onPress={onClose}
               style={styles.closeButton}
               accessibilityRole="button"
-              accessibilityLabel="Cerrar"
+              accessibilityLabel={t('wompi.close')}
               hitSlop={8}
             >
               <Ionicons name="close" size={22} color={colors.primary} />

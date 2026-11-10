@@ -13,11 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, mapColors, radius, spacing, typography } from '../theme';
 import { formatCOP } from '../utils/formatCurrency';
 import { REQUEST_TIMEOUT_SECONDS, secondsLeft } from '../utils/tripRequest';
+// AI-assisted: see docs/AI_LOG.md #22 — textos y etiquetas traducidos
+import { getCategoryLabel, getPaymentMethodLabel } from '../config/tripLabels';
+import { useLanguage } from '../context/LanguageContext';
 import Button from './ui/Button';
 
-const CATEGORY_LABELS = { economy: 'Económico', xl: 'XL', premium: 'Premium' };
-// AI-assisted: see docs/AI_LOG.md #14 — Wompi reemplaza a Mercado Pago
-const PAYMENT_LABELS = { wompi: 'Wompi (tarjeta)', cash: 'Efectivo' };
 // AI-assisted: see docs/AI_LOG.md #21 — ícono de cada método de pago
 const PAYMENT_ICONS = { wompi: 'card-outline', cash: 'cash-outline' };
 // desde este número de segundos el contador se pone en rojo
@@ -26,6 +26,7 @@ const URGENT_SECONDS = 5;
 export default function IncomingRequestModal({ request, onAccept, onReject }) {
   // AI-assisted: see docs/AI_LOG.md #21 — margen inferior para la barra de navegación de Android
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   // momento en que apareció la solicitud: el temporizador cuenta desde aquí
   const [shownAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
@@ -58,7 +59,7 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
     try {
       await onAccept(request.id);
     } catch (acceptError) {
-      setError(acceptError.message ?? 'No se pudo aceptar la solicitud.');
+      setError(acceptError.message ?? t('request.acceptError'));
       setBusy(null);
     }
   };
@@ -69,7 +70,7 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
     try {
       await onReject(request.id, 'driver');
     } catch (rejectError) {
-      setError(rejectError.message ?? 'No se pudo rechazar la solicitud.');
+      setError(rejectError.message ?? t('request.rejectError'));
       setBusy(null);
     }
   };
@@ -86,19 +87,19 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
           {/* encabezado: título, pasajero y contador circular */}
           <View style={styles.header}>
             <View style={styles.headerText}>
-              <Text style={styles.kicker}>Nueva solicitud</Text>
+              <Text style={styles.kicker}>{t('request.title')}</Text>
               <Text style={styles.passenger} numberOfLines={1}>
-                {request.passengerName ?? 'Pasajero'}
+                {request.passengerName ?? t('request.passenger')}
               </Text>
             </View>
             <View
               style={[styles.timer, urgent && styles.timerUrgent]}
-              accessibilityLabel={`Quedan ${remaining} segundos`}
+              accessibilityLabel={t('request.secondsLeft', { seconds: remaining })}
             >
               <Text style={[styles.timerNumber, urgent && styles.timerNumberUrgent]}>
                 {remaining}
               </Text>
-              <Text style={styles.timerUnit}>seg</Text>
+              <Text style={styles.timerUnit}>{t('request.secondsUnit')}</Text>
             </View>
           </View>
           <View style={styles.progressTrack}>
@@ -109,13 +110,13 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
           <View style={styles.route}>
             <RoutePoint
               color={mapColors.pickup}
-              label="Origen"
+              label={t('request.origin')}
               value={request.origin?.address}
               showLine
             />
             <RoutePoint
               color={mapColors.destination}
-              label="Destino"
+              label={t('request.destination')}
               value={request.destination?.address}
             />
           </View>
@@ -123,20 +124,20 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
           {/* distancia y duración, categoría y método de pago */}
           <View style={styles.metaRow}>
             <Meta icon="speedometer-outline" text={`${request.distanceKm} km · ${request.durationMin} min`} />
-            <Meta icon="car-outline" text={CATEGORY_LABELS[request.category] ?? request.category} />
+            <Meta icon="car-outline" text={getCategoryLabel(t, request.category)} />
             <Meta
               icon={PAYMENT_ICONS[request.paymentMethod] ?? 'wallet-outline'}
-              text={PAYMENT_LABELS[request.paymentMethod] ?? request.paymentMethod}
+              text={getPaymentMethodLabel(t, request.paymentMethod)}
             />
           </View>
 
           <View style={styles.amounts}>
             <View style={[styles.amountBox, styles.amountBoxLeft]}>
-              <Text style={styles.amountLabel}>Tarifa estimada</Text>
+              <Text style={styles.amountLabel}>{t('request.estimatedFare')}</Text>
               <Text style={styles.fare}>{formatCOP(request.fare)}</Text>
             </View>
             <View style={[styles.amountBox, styles.earningsBox]}>
-              <Text style={styles.earningsLabel}>Tu ganancia neta</Text>
+              <Text style={styles.earningsLabel}>{t('request.netEarnings')}</Text>
               <Text style={styles.earnings}>{formatCOP(request.driverEarnings)}</Text>
             </View>
           </View>
@@ -145,7 +146,7 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
 
           <View style={styles.buttons}>
             <Button
-              title="Rechazar"
+              title={t('request.reject')}
               variant="dangerOutline"
               onPress={handleReject}
               loading={busy === 'reject'}
@@ -153,7 +154,7 @@ export default function IncomingRequestModal({ request, onAccept, onReject }) {
               style={[styles.button, styles.rejectButton]}
             />
             <Button
-              title="Aceptar"
+              title={t('request.accept')}
               icon="checkmark"
               onPress={handleAccept}
               loading={busy === 'accept'}

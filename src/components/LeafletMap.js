@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+// AI-assisted: see docs/AI_LOG.md #22 — textos traducidos
+import { useLanguage } from '../context/LanguageContext';
 import { colors, mapColors } from '../theme';
 import Button from './ui/Button';
 
@@ -125,6 +127,7 @@ export default function LeafletMap({ center, markers = [], polyline = [], fitToC
   const webViewRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const { t } = useLanguage();
 
   // el HTML se arma una sola vez con el primer centro; los cambios posteriores van por updateMap
   const initialCenter = useRef(center ?? { lat: 6.2442, lng: -75.5812 }).current;
@@ -181,8 +184,9 @@ export default function LeafletMap({ center, markers = [], polyline = [], fitToC
       ) : null}
       {loadError ? (
         <View style={styles.overlay}>
-          <Text style={styles.errorText}>{loadError}</Text>
-          <Button title="Reintentar" icon="refresh" onPress={reload} compact />
+          {/* AI-assisted: see docs/AI_LOG.md #22 — el aviso se muestra en el idioma elegido */}
+          <Text style={styles.errorText}>{t('map.loadError')}</Text>
+          <Button title={t('common.retry')} icon="refresh" onPress={reload} compact />
         </View>
       ) : null}
     </View>

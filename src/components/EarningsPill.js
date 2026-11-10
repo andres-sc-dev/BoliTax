@@ -6,11 +6,14 @@
 // vez en AppDrawer): aquí no se repite ningún cálculo.
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { useEarningsData } from '../context/EarningsContext';
+// AI-assisted: see docs/AI_LOG.md #22 — textos traducidos
+import { useLanguage } from '../context/LanguageContext';
 import { colors, radius, spacing, typography } from '../theme';
 import { formatCOP } from '../utils/formatCurrency';
 
 export default function EarningsPill({ onPress, style }) {
   const { loading, periods } = useEarningsData();
+  const { t } = useLanguage();
   const net = periods.today.net;
 
   return (
@@ -18,7 +21,7 @@ export default function EarningsPill({ onPress, style }) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={
-        loading ? 'Cargando ganancias' : `Ganancia neta de hoy: ${formatCOP(net)}. Ver ganancias`
+        loading ? t('home.earningsLoading') : t('home.earningsA11y', { amount: formatCOP(net) })
       }
       hitSlop={8}
       style={({ pressed }) => [styles.pill, pressed && styles.pressed, style]}

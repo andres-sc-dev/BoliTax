@@ -3,6 +3,7 @@
 // AI-assisted: see docs/AI_LOG.md #20
 // Rediseño "Damero audaz": mitad superior amarilla con el logo grande y el wordmark BoliTAX en
 // negro, franja de damero, y el formulario sobre el fondo oscuro. La lógica no cambió.
+// AI-assisted: see docs/AI_LOG.md #22 — logotipo horizontal "BoliTAX" con damero (marca final)
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -14,8 +15,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import BrandLogo from '../../components/brand/BrandLogo';
-import Wordmark from '../../components/brand/Wordmark';
+import Logotype from '../../components/brand/Logotype';
 import FormField from '../../components/FormField';
 import { Button, Screen, YellowHeader } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +27,7 @@ const EMPTY_ERRORS = { email: null, password: null, general: null };
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState(EMPTY_ERRORS);
@@ -68,8 +68,8 @@ export default function LoginScreen({ navigation }) {
             checkerRows={3}
             contentStyle={[styles.hero, { minHeight: height * 0.42 }]}
           >
-            <BrandLogo variant="onYellow" size={112} />
-            <Wordmark variant="onYellow" size={48} style={styles.wordmark} />
+            {/* logotipo horizontal grande: ocupa casi todo el ancho */}
+            <Logotype variant="onYellow" width={Math.min(width - spacing.xxl * 2, 380)} />
             <Text style={styles.tagline}>App para conductores</Text>
           </YellowHeader>
 
@@ -118,13 +118,12 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1 },
   hero: { alignItems: 'center', justifyContent: 'center', paddingBottom: spacing.xl },
-  wordmark: { marginTop: spacing.lg },
   tagline: {
     ...typography.label,
     color: colors.onPrimaryMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    marginTop: spacing.xs,
+    marginTop: spacing.lg,
   },
   form: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
   title: { ...typography.title, color: colors.text },

@@ -10,7 +10,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '../config/tripLabels';
+// AI-assisted: see docs/AI_LOG.md #22 — textos y etiquetas traducidos
+import { getPaymentMethodLabel, getPaymentStatusLabel } from '../config/tripLabels';
+import { useLanguage } from '../context/LanguageContext';
 import { createWompiCheckout, verifyWompiPayment } from '../services/paymentsApi';
 import { markCashPaid, switchToCash } from '../services/trips';
 import { colors, paymentStatusColors, radius, spacing, typography } from '../theme';
@@ -20,15 +22,10 @@ import { Badge, Button, Card } from './ui';
 import WompiCheckoutModal from './WompiCheckoutModal';
 
 // textos de las confirmaciones dentro de la pantalla (no Alert)
+// AI-assisted: see docs/AI_LOG.md #22 — ahora son claves del diccionario
 const CONFIRMATIONS = {
-  cash: {
-    message: '¿Confirmas que recibiste el pago completo en efectivo?',
-    confirmLabel: 'Sí, lo recibí',
-  },
-  switch: {
-    message: '¿El pasajero pagará en efectivo? El cobro con Wompi se cancelará para este viaje.',
-    confirmLabel: 'Sí, cobrar en efectivo',
-  },
+  cash: { message: 'payment.confirmCash', confirmLabel: 'payment.confirmCashButton' },
+  switch: { message: 'payment.confirmSwitch', confirmLabel: 'payment.confirmSwitchButton' },
 };
 
 export default function TripPaymentPanel({ trip }) {
@@ -42,6 +39,7 @@ export default function TripPaymentPanel({ trip }) {
   const [confirming, setConfirming] = useState(null);
   // evita dos verificaciones al mismo tiempo (por ejemplo, redirección + botón)
   const verifyInFlightRef = useRef(false);
+  const { t } = useLanguage();
 
   const paymentStatus = trip.paymentStatus ?? 'pending';
   const isPaid = trip.status === 'paid';
@@ -63,7 +61,7 @@ export default function TripPaymentPanel({ trip }) {
     try {
       return await action();
     } catch (actionError) {
-      setPaymentError(actionError.message ?? 'No se pudo completar la acción.');
+      setPaymentError(actionError.message ?? t('common.actionError'));
       return null;
     } finally {
       setPaymentBusy(null);
@@ -99,7 +97,7 @@ export default function TripPaymentPanel({ trip }) {
   // se cerró el WebView sin terminar: queda "Verificar pago" (busca por la referencia)
   const handleCheckoutClosed = () => {
     setCheckout(null);
-    setPaymentMessage('Si alcanzaste a pagar, toca "Verificar pago".');
+    setPaymentMessage(t('payment.checkoutClosed'));
   };
 
   // confirmación aceptada: efectivo recibido o cambio a efectivo
@@ -133,7 +131,7 @@ export default function TripPaymentPanel({ trip }) {
   // el monto va aparte (grande) y la frase debajo; el contenido es el mismo de antes
   const balanceAmount = balanceImpact >= 0 ? `+${formatCOP(balanceImpact)}` : formatCOP(balanceImpact);
   const balanceCaption =
-    balanceImpact >= 0 ? 'a tu saldo' : 'de comisión descontada de tu saldo';
+    balanceImpact >= 0 ? t('payment.toBalance') : t('payment.commissionDeducted');
 
   const busy = paymentBusy !== null;
 
@@ -141,10 +139,10 @@ export default function TripPaymentPanel({ trip }) {
     <Card>
       {/* AI-assisted: see docs/AI_LOG.md #21 — encabezado de la tarjeta con el estado del pago */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Cobro</Text>
+        <Text style={styles.title}>{t('payment.title')}</Text>
         {/* estado en tiempo real: cambia solo cuando se actualiza el viaje en Firestore */}
         <Badge
-          label={PAYMENT_STATUS_LABELS[paymentStatus] ?? paymentStatus}
+          label={getPaymentStatusLabel(t, paymentStatus)}
           color={paymentStatusColors[paymentStatus] ?? colors.textMuted}
         />
       </View>
@@ -156,57 +154,55 @@ export default function TripPaymentPanel({ trip }) {
             size={18}
             color={colors.textMuted}
           />
-          <Text style={styles.rowLabel}>Método de pago</Text>
+          <Text style={styles.rowLabel}>{t('payment.method')}</Text>
         </View>
         <Text style={styles.rowValue}>
-          {PAYMENT_METHOD_LABELS[trip.paymentMethod] ?? trip.paymentMethod}
+          {getPaymentMethodLabel(t, trip.paymentMethod)}
         </Text>
       </View>
 
       {/* efecto en el saldo */}
       <View style={styles.balanceBox}>
-        <Text style={styles.balanceCaption}>{isPaid ? 'Efecto en tu saldo' : 'Al cobrarse'}</Text>
+        <Text style={styles.balanceCaption}>
+          {isPaid ? t('payment.balanceEffect') : t('payment.whenCharged')}
+        </Text>
         <Text style={[styles.balanceAmount, balanceImpact < 0 && styles.balanceNegative]}>
           {balanceAmount}
         </Text>
         <Text style={styles.balanceCaption}>{balanceCaption}</Text>
       </View>
       {isCash ? (
-        <Text style={styles.note}>
-          En efectivo recibes el dinero directamente; la comisión se descuenta de tu saldo.
-        </Text>
+        <Text style={styles.note}>{t('payment.cashNote')}</Text>
       ) : null}
 
       {isPaid ? (
         <View style={[styles.notice, styles.noticeSuccess]}>
           <Ionicons name="checkmark-circle" size={20} color={colors.success} />
           <Text style={[styles.noticeText, { color: colors.success }]}>
-            {isWompi ? 'Pago aprobado por Wompi.' : 'Cobro en efectivo registrado.'}
+            {isWompi ? t('payment.approvedWompi') : t('payment.cashRegistered')}
           </Text>
         </View>
       ) : null}
       {paymentStatus === 'rejected' && !isPaid ? (
         <View style={[styles.notice, styles.noticeDanger]}>
           <Ionicons name="close-circle" size={20} color={colors.danger} />
-          <Text style={styles.noticeText}>
-            El pago fue rechazado. Puedes reintentar con Wompi o cobrar en efectivo.
-          </Text>
+          <Text style={styles.noticeText}>{t('payment.rejected')}</Text>
         </View>
       ) : null}
 
       {confirming ? (
         // confirmación dentro de la pantalla, no en un Alert
         <View style={styles.confirmBox}>
-          <Text style={styles.confirmText}>{CONFIRMATIONS[confirming].message}</Text>
+          <Text style={styles.confirmText}>{t(CONFIRMATIONS[confirming].message)}</Text>
           <Button
-            title={CONFIRMATIONS[confirming].confirmLabel}
+            title={t(CONFIRMATIONS[confirming].confirmLabel)}
             variant="success"
             onPress={handleConfirm}
             loading={paymentBusy === confirming}
             disabled={busy}
           />
           <Button
-            title="Cancelar"
+            title={t('common.cancel')}
             variant="ghost"
             compact
             onPress={() => setConfirming(null)}
@@ -217,7 +213,7 @@ export default function TripPaymentPanel({ trip }) {
         <View>
           {canChargeWompi ? (
             <Button
-              title={paymentStatus === 'rejected' ? 'Reintentar cobro con Wompi' : 'Cobrar con Wompi'}
+              title={paymentStatus === 'rejected' ? t('payment.retryWompi') : t('payment.chargeWompi')}
               variant="info"
               icon="card"
               onPress={handleCharge}
@@ -227,7 +223,7 @@ export default function TripPaymentPanel({ trip }) {
           ) : null}
           {canVerify ? (
             <Button
-              title="Verificar pago"
+              title={t('payment.verify')}
               variant="secondary"
               icon="refresh"
               onPress={() => handleVerify()}
@@ -237,7 +233,7 @@ export default function TripPaymentPanel({ trip }) {
           ) : null}
           {canSwitchToCash ? (
             <Button
-              title="Cobrar en efectivo"
+              title={t('payment.chargeCash')}
               variant="secondary"
               icon="cash-outline"
               onPress={() => setConfirming('switch')}
@@ -246,7 +242,7 @@ export default function TripPaymentPanel({ trip }) {
           ) : null}
           {canMarkCash ? (
             <Button
-              title="Cobro recibido en efectivo"
+              title={t('payment.cashReceived')}
               variant="success"
               icon="cash"
               onPress={() => setConfirming('cash')}

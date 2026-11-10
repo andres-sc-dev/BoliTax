@@ -15,6 +15,8 @@ import LeafletMap from '../components/LeafletMap';
 import { Badge, Button, Screen } from '../components/ui';
 import { useAvailability } from '../context/AvailabilityContext';
 import { useTrip } from '../context/TripContext';
+// AI-assisted: see docs/AI_LOG.md #22 — textos traducidos
+import { useLanguage } from '../context/LanguageContext';
 import { useRouteSimulation } from '../hooks/useRouteSimulation';
 import { useTripRoute } from '../hooks/useTripRoute';
 import { cancelTrip, finishTrip, startTrip } from '../services/trips';
@@ -32,6 +34,7 @@ export default function TripInProgressScreen({ navigation }) {
   const isFocused = useIsFocused();
   // AI-assisted: see docs/AI_LOG.md #21 — margen inferior para la barra de navegación
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   // sin viaje activo (cancelado, o ya no existe) se vuelve a Inicio.
   // AI-assisted: see docs/AI_LOG.md #13
@@ -69,7 +72,7 @@ export default function TripInProgressScreen({ navigation }) {
       await action();
       return true;
     } catch (error) {
-      setActionError(error.message ?? 'No se pudo completar la acción.');
+      setActionError(error.message ?? t('common.actionError'));
       return false;
     } finally {
       setBusy(null);
@@ -97,7 +100,7 @@ export default function TripInProgressScreen({ navigation }) {
     markers.push({
       id: 'driver',
       ...location,
-      label: 'Tú',
+      label: t('map.you'),
       color: mapColors.driver,
       radius: 10,
       halo: true,
@@ -107,7 +110,7 @@ export default function TripInProgressScreen({ navigation }) {
     id: 'pickup',
     lat: trip.origin.lat,
     lng: trip.origin.lng,
-    label: 'Recogida',
+    label: t('map.pickup'),
     color: mapColors.pickup,
   });
   if (!onPickupLeg) {
@@ -115,7 +118,7 @@ export default function TripInProgressScreen({ navigation }) {
       id: 'destination',
       lat: trip.destination.lat,
       lng: trip.destination.lng,
-      label: 'Destino',
+      label: t('map.destination'),
       color: mapColors.destination,
     });
   }
@@ -136,7 +139,7 @@ export default function TripInProgressScreen({ navigation }) {
         <View style={styles.handle} />
 
         <Badge
-          label={onPickupLeg ? 'Rumbo a la recogida' : 'Pasajero a bordo'}
+          label={onPickupLeg ? t('trip.toPickup') : t('trip.onBoard')}
           color={onPickupLeg ? colors.primary : colors.success}
         />
 
@@ -146,7 +149,9 @@ export default function TripInProgressScreen({ navigation }) {
             <Ionicons name="person" size={22} color={colors.onPrimary} />
           </View>
           <Text style={styles.stage} numberOfLines={2}>
-            {onPickupLeg ? `Recoge a ${trip.passengerName}` : `Llevando a ${trip.passengerName}`}
+            {onPickupLeg
+              ? t('trip.pickUpName', { name: trip.passengerName })
+              : t('trip.drivingName', { name: trip.passengerName })}
           </Text>
         </View>
 
@@ -159,7 +164,9 @@ export default function TripInProgressScreen({ navigation }) {
             ]}
           />
           <View style={styles.addressText}>
-            <Text style={styles.label}>{onPickupLeg ? 'Punto de recogida' : 'Destino'}</Text>
+            <Text style={styles.label}>
+              {onPickupLeg ? t('trip.pickupPoint') : t('trip.destination')}
+            </Text>
             <Text style={styles.address}>
               {onPickupLeg ? trip.origin.address : trip.destination.address}
             </Text>
@@ -177,11 +184,13 @@ export default function TripInProgressScreen({ navigation }) {
         ) : null}
         {routeError ? (
           <Pressable onPress={retry}>
-            <Text style={styles.error}>{routeError} Toca para reintentar.</Text>
+            <Text style={styles.error}>
+              {routeError} {t('trip.tapToRetry')}
+            </Text>
           </Pressable>
         ) : null}
         {onPickupLeg && !location && !routeLoading ? (
-          <Text style={styles.hint}>Esperando tu ubicación para calcular la ruta…</Text>
+          <Text style={styles.hint}>{t('trip.waitingLocation')}</Text>
         ) : null}
 
         {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
@@ -189,17 +198,17 @@ export default function TripInProgressScreen({ navigation }) {
         {confirmingCancel ? (
           // confirmación dentro de la pantalla, no en un Alert
           <View style={styles.confirmBox}>
-            <Text style={styles.confirmText}>¿Seguro que quieres cancelar este viaje?</Text>
+            <Text style={styles.confirmText}>{t('trip.cancelConfirm')}</Text>
             <View style={styles.row}>
               <Button
-                title="No"
+                title={t('trip.no')}
                 variant="secondary"
                 onPress={() => setConfirmingCancel(false)}
                 disabled={busyAny}
                 style={[styles.rowButton, styles.rowButtonLeft]}
               />
               <Button
-                title="Sí, cancelar"
+                title={t('trip.yesCancel')}
                 variant="danger"
                 onPress={handleConfirmCancel}
                 loading={busy === 'cancel'}
@@ -212,7 +221,7 @@ export default function TripInProgressScreen({ navigation }) {
           <>
             {onPickupLeg ? (
               <Button
-                title="Pasajero a bordo"
+                title={t('trip.pickedUp')}
                 icon="person-add"
                 onPress={handlePickedUp}
                 loading={busy === 'start'}
@@ -221,7 +230,7 @@ export default function TripInProgressScreen({ navigation }) {
             ) : (
               // AI-assisted: see docs/AI_LOG.md #13 — solo en in_progress
               <Button
-                title="Finalizar viaje"
+                title={t('trip.finish')}
                 icon="flag"
                 onPress={handleFinish}
                 loading={busy === 'finish'}
@@ -230,7 +239,7 @@ export default function TripInProgressScreen({ navigation }) {
             )}
             {canCancel(status) ? (
               <Button
-                title="Cancelar viaje"
+                title={t('trip.cancel')}
                 variant="ghost"
                 compact
                 onPress={() => setConfirmingCancel(true)}
@@ -249,7 +258,7 @@ export default function TripInProgressScreen({ navigation }) {
             hitSlop={6}
           >
             <Ionicons name="map-outline" size={16} color={colors.textMuted} />
-            <Text style={styles.footerText}>Ir al mapa de inicio</Text>
+            <Text style={styles.footerText}>{t('trip.goHome')}</Text>
           </Pressable>
 
           {/* AI-assisted: see docs/AI_LOG.md #12 — modo demo, solo en desarrollo (__DEV__) */}
@@ -263,10 +272,10 @@ export default function TripInProgressScreen({ navigation }) {
               <Ionicons name="flask-outline" size={14} color={colors.textMuted} />
               <Text style={styles.demoText}>
                 {simulation.running
-                  ? 'Simulando recorrido…'
+                  ? t('trip.demoRunning')
                   : simulation.finished
-                    ? 'Repetir recorrido (demo)'
-                    : 'Simular recorrido (demo)'}
+                    ? t('trip.demoRepeat')
+                    : t('trip.demoStart')}
               </Text>
             </Pressable>
           ) : null}
